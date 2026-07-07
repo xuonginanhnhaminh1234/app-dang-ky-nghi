@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<title>Đăng ký nghỉ - Xưởng in ảnh</title>
+<title>Nhân Sự Nhà Mình - Xưởng in ảnh</title>
 <style>
   /* ============ RESET & NỀN ============ */
   * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; }
@@ -73,6 +73,10 @@
   }
   .menu-btn .icon { font-size: 24px; }
   .menu-btn:active { background: #e3f2fd; }
+  .group-label {
+    margin: 20px 4px 2px; font-size: 12px; font-weight: 800;
+    letter-spacing: 1px; color: var(--xam);
+  }
 
   /* ============ BADGE TRẠNG THÁI ============ */
   .badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; color: #fff; }
@@ -138,7 +142,7 @@
 <!-- ================= THANH TRÊN ================= -->
 <div class="topbar hidden" id="topbar">
   <button class="back-btn" id="btnBack" onclick="goHome()">←</button>
-  <div class="title" id="topTitle">Đăng ký nghỉ</div>
+  <div class="title" id="topTitle">Nhân Sự Nhà Mình</div>
   <button class="logout-btn" onclick="logout()">Thoát</button>
 </div>
 
@@ -146,7 +150,7 @@
 <div class="screen active" id="scr-login">
   <div class="logo">
     <div class="ic">🏭</div>
-    <h1>Đăng ký nghỉ</h1>
+    <h1>Nhân Sự Nhà Mình</h1>
     <p>Xưởng in ảnh - Nhập mã PIN để vào</p>
   </div>
   <label>Mã PIN</label>
@@ -161,13 +165,28 @@
     <h3 id="homeHello">Xin chào</h3>
     <div class="line" id="homeInfo"></div>
   </div>
+  <div class="group-label">NHÂN VIÊN</div>
+  <button class="menu-btn" onclick="openChamCong()"><span class="icon">⏱️</span> Chấm công</button>
+  <button class="menu-btn" onclick="openCongToi()"><span class="icon">🗓️</span> Công của tôi</button>
   <button class="menu-btn" onclick="openDangKy()"><span class="icon">📝</span> Đăng ký nghỉ</button>
   <button class="menu-btn" onclick="openMyLeaves()"><span class="icon">📅</span> Lịch nghỉ của tôi</button>
-  <button class="menu-btn hidden" id="mnDashboard" onclick="openDashboard()"><span class="icon">📊</span> Dashboard quản lý</button>
+  <button class="menu-btn" onclick="openTamUngToi()"><span class="icon">💵</span> Tạm ứng của tôi</button>
+
+  <div class="group-label hidden" id="lblQuanLy">QUẢN LÝ</div>
+  <button class="menu-btn hidden" id="mnHRDash" onclick="openHRDash()"><span class="icon">📈</span> Dashboard nhân sự</button>
+  <button class="menu-btn hidden" id="mnDashboard" onclick="openDashboard()"><span class="icon">📊</span> Dashboard nghỉ phép</button>
   <button class="menu-btn hidden" id="mnDuyet" onclick="openDuyet()"><span class="icon">✅</span> Duyệt nghỉ</button>
-  <button class="menu-btn hidden" id="mnTaoThay" onclick="openTaoThay()"><span class="icon">👥</span> Tạo đơn thay nhân viên</button>
-  <button class="menu-btn hidden" id="mnSlot" onclick="openSlot()"><span class="icon">🎚️</span> Quản lý slot</button>
-  <button class="menu-btn hidden" id="mnKhoa" onclick="openKhoa()"><span class="icon">🔒</span> Khóa ngày</button>
+  <button class="menu-btn hidden" id="mnTaoThay" onclick="openTaoThay()"><span class="icon">👥</span> Tạo đơn nghỉ thay nhân viên</button>
+  <button class="menu-btn hidden" id="mnSlot" onclick="openSlot()"><span class="icon">🎚️</span> Quản lý slot nghỉ</button>
+  <button class="menu-btn hidden" id="mnKhoa" onclick="openKhoa()"><span class="icon">🔒</span> Khóa ngày nghỉ</button>
+  <button class="menu-btn hidden" id="mnNhanVien" onclick="openNhanVien()"><span class="icon">🪪</span> Quản lý nhân viên</button>
+  <button class="menu-btn hidden" id="mnBCNgay" onclick="openBCNgay()"><span class="icon">📋</span> Bảng công ngày</button>
+  <button class="menu-btn hidden" id="mnBCThang" onclick="openBCThang()"><span class="icon">🧾</span> Bảng công tháng</button>
+  <button class="menu-btn hidden" id="mnTangCa" onclick="openTangCa()"><span class="icon">🌙</span> Tăng ca</button>
+  <button class="menu-btn hidden" id="mnTamUngQL" onclick="openTamUngQL()"><span class="icon">💰</span> Tạm ứng (duyệt)</button>
+  <button class="menu-btn hidden" id="mnThuongPhat" onclick="openThuongPhat()"><span class="icon">🏅</span> Thưởng / phạt</button>
+  <button class="menu-btn hidden" id="mnLuong" onclick="openLuong()"><span class="icon">🧮</span> Bảng lương sơ bộ</button>
+  <button class="menu-btn hidden" id="mnCauHinhNS" onclick="openCauHinhNS()"><span class="icon">⚙️</span> Cấu hình nhân sự</button>
 </div>
 
 <!-- ================= 3. ĐĂNG KÝ NGHỈ ================= -->
@@ -313,6 +332,248 @@
   <div id="khoaListBox"></div>
 </div>
 
+<!-- ================================================== -->
+<!-- ============ CÁC MÀN HÌNH V3: NHÂN SỰ ============ -->
+<!-- ================================================== -->
+
+<!-- V3.1 CHẤM CÔNG -->
+<div class="screen" id="scr-chamcong">
+  <div class="card">
+    <h3>⏱️ Chấm công hôm nay</h3>
+    <div id="ccBox"></div>
+    <label>Ghi chú (nếu cần)</label>
+    <input type="text" id="ccGhiChu" placeholder="VD: đi giao hàng về trễ...">
+    <button class="btn green" onclick="doCheckIn()">✅ Chấm vào</button>
+    <button class="btn orange" onclick="doCheckOut()">🕔 Chấm ra</button>
+  </div>
+</div>
+
+<!-- V3.2 CÔNG CỦA TÔI -->
+<div class="screen" id="scr-congtoi">
+  <div class="card">
+    <div class="filter-grid">
+      <div><label>Tháng</label><select id="ctThang"></select></div>
+      <div><label>Năm</label><select id="ctNam"></select></div>
+    </div>
+    <button class="btn small" onclick="loadCongToi()">Xem công</button>
+  </div>
+  <div id="congToiBox"></div>
+</div>
+
+<!-- V3.3 DASHBOARD NHÂN SỰ -->
+<div class="screen" id="scr-hrdash">
+  <div class="card">
+    <label>Ngày</label>
+    <input type="date" id="hrNgay">
+    <button class="btn small" onclick="loadHRDash()">Xem báo cáo</button>
+  </div>
+  <div id="hrDashBox"></div>
+</div>
+
+<!-- V3.4 BẢNG CÔNG NGÀY -->
+<div class="screen" id="scr-bcngay">
+  <div class="card">
+    <div class="filter-grid">
+      <div><label>Ngày</label><input type="date" id="bcnNgay"></div>
+      <div><label>Phòng ban</label><select id="bcnPhongBan"></select></div>
+    </div>
+    <button class="btn small" onclick="loadBCNgay()">Xem bảng công</button>
+  </div>
+  <div class="card">
+    <h3>➕ Thêm công tay</h3>
+    <label>Nhân viên</label>
+    <select id="tcNhanVien"></select>
+    <div class="filter-grid">
+      <div><label>Giờ vào</label><input type="time" id="tcGioVao"></div>
+      <div><label>Giờ ra</label><input type="time" id="tcGioRa"></div>
+    </div>
+    <label>Trạng thái</label>
+    <select id="tcTrangThai">
+      <option>Quản lý chỉnh</option>
+      <option>Hoàn tất</option>
+      <option>Quên chấm vào</option>
+      <option>Quên chấm ra</option>
+      <option>Nghỉ</option>
+    </select>
+    <label>Lý do thêm công (bắt buộc)</label>
+    <input type="text" id="tcLyDo" placeholder="VD: quên chấm công, làm ngoài xưởng...">
+    <button class="btn green" onclick="createCongTay()">Thêm công tay</button>
+  </div>
+  <div id="bcNgayBox"></div>
+</div>
+
+<!-- V3.5 BẢNG CÔNG THÁNG -->
+<div class="screen" id="scr-bcthang">
+  <div class="card">
+    <div class="filter-grid">
+      <div><label>Tháng</label><select id="bctThang"></select></div>
+      <div><label>Năm</label><select id="bctNam"></select></div>
+    </div>
+    <label>Phòng ban</label>
+    <select id="bctPhongBan"></select>
+    <button class="btn small" onclick="loadBCThang()">Xem bảng công tháng</button>
+  </div>
+  <div id="bcThangBox"></div>
+</div>
+
+<!-- V3.6 QUẢN LÝ NHÂN VIÊN -->
+<div class="screen" id="scr-nhanvien">
+  <div class="card">
+    <div class="filter-grid">
+      <div><label>Phòng ban</label><select id="nvLocPB"></select></div>
+      <div><label>Trạng thái</label>
+        <select id="nvLocTT">
+          <option value="">Tất cả</option>
+          <option>Đang làm</option>
+          <option>Tạm nghỉ</option>
+          <option>Nghỉ việc</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn small" onclick="loadNhanVien()">Lọc / Tải lại</button>
+  </div>
+  <div class="card">
+    <h3 id="nvFormTitle">➕ Thêm nhân viên mới</h3>
+    <label>Họ tên *</label><input type="text" id="nvHoTen">
+    <label>Mã PIN đăng nhập <span class="muted" id="nvPinNote">(bắt buộc khi thêm mới)</span></label>
+    <input type="text" id="nvMaPIN" inputmode="numeric" placeholder="VD: 4444">
+    <label>Số điện thoại</label><input type="text" id="nvSDT" inputmode="tel">
+    <label>Phòng ban *</label><select id="nvPhongBan"></select>
+    <label>Chức vụ</label><input type="text" id="nvChucVu">
+    <label>Ngày vào làm</label><input type="date" id="nvNgayVao">
+    <label>Hình thức lương</label>
+    <select id="nvHinhThuc">
+      <option>Theo tháng</option>
+      <option>Theo giờ</option>
+      <option>Khoán</option>
+      <option>Khác</option>
+    </select>
+    <div class="filter-grid">
+      <div><label>Lương cơ bản (đ/tháng)</label><input type="number" id="nvLuongCB" inputmode="numeric"></div>
+      <div><label>Lương theo giờ (đ/giờ)</label><input type="number" id="nvLuongGio" inputmode="numeric"></div>
+    </div>
+    <label>Phụ cấp cố định (đ/tháng)</label><input type="number" id="nvPhuCap" inputmode="numeric">
+    <div class="filter-grid">
+      <div><label>Số tài khoản</label><input type="text" id="nvSTK"></div>
+      <div><label>Ngân hàng</label><input type="text" id="nvNganHang"></div>
+    </div>
+    <label>Ghi chú</label><input type="text" id="nvGhiChu">
+    <button class="btn green" onclick="saveNhanVien()">💾 Lưu nhân viên</button>
+    <button class="btn gray small hidden" id="nvBtnHuySua" onclick="resetNVForm()">Hủy sửa, chuyển về thêm mới</button>
+  </div>
+  <div id="nhanVienBox"></div>
+</div>
+
+<!-- V3.7 TẠM ỨNG CỦA TÔI -->
+<div class="screen" id="scr-tamungtoi">
+  <div class="card">
+    <h3>💵 Gửi đề nghị tạm ứng</h3>
+    <label>Số tiền (đ)</label>
+    <input type="number" id="tuSoTien" inputmode="numeric" placeholder="VD: 500000">
+    <label>Lý do</label>
+    <textarea id="tuLyDo" placeholder="Nhập lý do tạm ứng..."></textarea>
+    <button class="btn green" onclick="guiTamUng()">Gửi đề nghị</button>
+  </div>
+  <div id="tamUngToiBox"></div>
+</div>
+
+<!-- V3.8 TẠM ỨNG (QUẢN LÝ DUYỆT) -->
+<div class="screen" id="scr-tamungql">
+  <div class="card">
+    <div class="filter-grid">
+      <div><label>Trạng thái</label>
+        <select id="tuqlTrangThai">
+          <option value="">Tất cả</option>
+          <option>Chờ duyệt</option>
+          <option>Đã duyệt</option>
+          <option>Đã chi</option>
+          <option>Từ chối</option>
+        </select>
+      </div>
+      <div><label>Phòng ban</label><select id="tuqlPhongBan"></select></div>
+    </div>
+    <button class="btn small" onclick="loadTamUngQL()">Lọc / Tải lại</button>
+    <button class="btn small purple" onclick="copyTamUngChoDuyet()">📋 Copy DS chờ duyệt</button>
+  </div>
+  <div id="tamUngQLBox"></div>
+</div>
+
+<!-- V3.9 THƯỞNG / PHẠT -->
+<div class="screen" id="scr-thuongphat">
+  <div class="card">
+    <div class="filter-grid">
+      <div><label>Tháng</label><select id="tpThang"></select></div>
+      <div><label>Năm</label><select id="tpNam"></select></div>
+    </div>
+    <button class="btn small" onclick="loadThuongPhat()">Xem danh sách</button>
+  </div>
+  <div class="card">
+    <h3>➕ Thêm khoản mới</h3>
+    <label>Nhân viên</label><select id="tpNhanVien"></select>
+    <label>Loại</label>
+    <select id="tpLoai">
+      <option>Thưởng</option>
+      <option>Phạt</option>
+      <option>Phụ cấp</option>
+      <option>Khấu trừ</option>
+      <option>Khác</option>
+    </select>
+    <label>Số tiền (đ)</label>
+    <input type="number" id="tpSoTien" inputmode="numeric">
+    <label>Lý do</label>
+    <input type="text" id="tpLyDo">
+    <button class="btn green" onclick="themThuongPhat()">Thêm khoản</button>
+  </div>
+  <div id="thuongPhatBox"></div>
+</div>
+
+<!-- V3.10 TĂNG CA -->
+<div class="screen" id="scr-tangca">
+  <div class="card">
+    <div class="filter-grid">
+      <div><label>Từ ngày</label><input type="date" id="otTuNgay"></div>
+      <div><label>Đến ngày</label><input type="date" id="otDenNgay"></div>
+    </div>
+    <button class="btn small" onclick="loadTangCa()">Lọc / Tải lại</button>
+    <button class="btn small purple" onclick="copyTangCa()">📋 Copy danh sách tăng ca</button>
+  </div>
+  <div class="card">
+    <h3>➕ Tạo tăng ca thay nhân viên</h3>
+    <label>Nhân viên</label><select id="otNhanVien"></select>
+    <label>Ngày tăng ca</label><input type="date" id="otNgay">
+    <div class="filter-grid">
+      <div><label>Từ giờ</label><input type="time" id="otGioBD"></div>
+      <div><label>Đến giờ</label><input type="time" id="otGioKT"></div>
+    </div>
+    <label>Lý do</label><input type="text" id="otLyDo">
+    <div class="check-row">
+      <input type="checkbox" id="otDuyetLuon" checked>
+      <span>Duyệt luôn (không cần duyệt lại)</span>
+    </div>
+    <button class="btn green" onclick="taoTangCa()">Tạo tăng ca</button>
+  </div>
+  <div id="tangCaBox"></div>
+</div>
+
+<!-- V3.11 BẢNG LƯƠNG SƠ BỘ -->
+<div class="screen" id="scr-luong">
+  <div class="card">
+    <div class="filter-grid">
+      <div><label>Tháng</label><select id="blThang"></select></div>
+      <div><label>Năm</label><select id="blNam"></select></div>
+    </div>
+    <label>Phòng ban</label><select id="blPhongBan"></select>
+    <button class="btn small" onclick="loadLuong()">Xem bảng lương sơ bộ</button>
+    <p class="muted" style="margin-top:8px">Lương SƠ BỘ để tham khảo. Chưa tính hệ số tăng ca, chưa trừ ngày nghỉ không phép (V4).</p>
+  </div>
+  <div id="luongBox"></div>
+</div>
+
+<!-- V3.12 CẤU HÌNH NHÂN SỰ -->
+<div class="screen" id="scr-cauhinhns">
+  <div id="cauHinhNSBox"></div>
+</div>
+
 <!-- ================= LOADING & TOAST ================= -->
 <div id="loading"><div class="spin"></div></div>
 <div id="toast"></div>
@@ -321,7 +582,7 @@
 /* =====================================================
  * CẤU HÌNH: dán link Web App /exec của Apps Script vào đây
  * ===================================================== */
-const API_URL = 'https://script.google.com/macros/s/AKfycbyKMGtuoB6orY3IZfX0JLBF1Cwb6475DhDq-rW2eD_6rOgSNyl0f2Zn1G-ZLZt6q1sr/exec';
+const API_URL = 'https://script.google.com/macros/library/d/13vL973BY9xGRms8RGd1nSSCTfbk47oBFGxc-qmZ-sU0EuvgwsHSFoxvW/8';
 
 const STORAGE_KEY = 'nghiapp_user';
 let user = null;      // user đang đăng nhập
@@ -371,7 +632,18 @@ function badgeHtml(trangThai, vuotSlot) {
     'Đã duyệt': 'da-duyet',
     'Từ chối': 'tu-choi',
     'Đã hủy': 'da-huy',
-    'Yêu cầu đặc biệt': 'dac-biet'
+    'Yêu cầu đặc biệt': 'dac-biet',
+    // V3: trạng thái chấm công / tạm ứng / nhân viên
+    'Đã chi': 'da-duyet',
+    'Hoàn tất': 'da-duyet',
+    'Chưa hoàn tất': 'cho-duyet',
+    'Quản lý chỉnh': 'dac-biet',
+    'Quên chấm vào': 'tu-choi',
+    'Quên chấm ra': 'tu-choi',
+    'Nghỉ': 'da-huy',
+    'Đang làm': 'da-duyet',
+    'Tạm nghỉ': 'cho-duyet',
+    'Nghỉ việc': 'da-huy'
   };
   let html = '<span class="badge ' + (map[trangThai] || 'da-huy') + '">' + escapeHtml(trangThai) + '</span>';
   if (vuotSlot) html += ' <span class="badge vuot">VƯỢT SLOT</span>';
@@ -408,7 +680,7 @@ function showScreen(id, title) {
   const isLogin = (id === 'scr-login');
   $('topbar').classList.toggle('hidden', isLogin);
   $('btnBack').style.visibility = (id === 'scr-home') ? 'hidden' : 'visible';
-  $('topTitle').textContent = title || 'Đăng ký nghỉ';
+  $('topTitle').textContent = title || 'Nhân Sự Nhà Mình';
   window.scrollTo(0, 0);
 }
 
@@ -457,6 +729,28 @@ function renderHome() {
   $('mnTaoThay').classList.toggle('hidden', !user.duocDuyetNghi);
   $('mnSlot').classList.toggle('hidden', !user.duocSuaCauHinh);
   $('mnKhoa').classList.toggle('hidden', !user.duocSuaCauHinh);
+
+  // V3: các nút nhân sự (quyền mới, tài khoản cũ chưa refresh thì coi như false)
+  const qlNS = user.duocQuanLyNhanSu === true;
+  const suaCong = user.duocSuaCong === true;
+  const xemLuong = user.duocXemBangLuong === true;
+  const duyetTU = user.duocDuyetTamUng === true;
+  const chotLuong = user.duocChotLuong === true;
+  $('mnHRDash').classList.toggle('hidden', !user.duocXemDashboard);
+  $('mnNhanVien').classList.toggle('hidden', !qlNS);
+  $('mnBCNgay').classList.toggle('hidden', !suaCong);
+  $('mnBCThang').classList.toggle('hidden', !suaCong);
+  $('mnTangCa').classList.toggle('hidden', !suaCong);
+  $('mnTamUngQL').classList.toggle('hidden', !duyetTU);
+  $('mnThuongPhat').classList.toggle('hidden', !chotLuong);
+  $('mnLuong').classList.toggle('hidden', !xemLuong);
+  $('mnCauHinhNS').classList.toggle('hidden', !qlNS);
+
+  // Ẩn nhãn "QUẢN LÝ" nếu không có nút quản lý nào
+  const coQuanLy = user.duocXemDashboard || user.duocDuyetNghi || user.duocSuaCauHinh ||
+    qlNS || suaCong || xemLuong || duyetTU || chotLuong;
+  $('lblQuanLy').classList.toggle('hidden', !coQuanLy);
+
   showScreen('scr-home', 'Trang chính');
 }
 
@@ -1297,6 +1591,788 @@ async function doUnlock(ngay, phongBan, caNghi) {
   const res = await api('unlockDate', { userID: user.userID, ngay, phongBan, caNghi });
   toast(res.message);
   loadKhoaList();
+}
+
+/* ====================================================
+ * ============ JS V3: MODULE NHÂN SỰ =================
+ * ==================================================== */
+
+function fmtMoney(n) { return (Number(n) || 0).toLocaleString('vi-VN'); }
+
+// Đổ select tháng/năm, mặc định tháng hiện tại
+function fillThangNam(idThang, idNam) {
+  if ($(idThang).options.length) return; // chỉ đổ 1 lần
+  const now = new Date();
+  fillSelect($(idThang), [1,2,3,4,5,6,7,8,9,10,11,12], t => t, t => 'Tháng ' + t);
+  $(idThang).value = String(now.getMonth() + 1);
+  fillSelect($(idNam), [now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1], n => n, n => 'Năm ' + n);
+  $(idNam).value = String(now.getFullYear());
+}
+
+/* ---------- V3.1 CHẤM CÔNG ---------- */
+async function openChamCong() {
+  showScreen('scr-chamcong', 'Chấm công');
+  loadChamCong();
+}
+
+async function loadChamCong() {
+  $('ccBox').innerHTML = '<div class="muted">Đang tải...</div>';
+  const res = await api('getTodayAttendance', { userID: user.userID });
+  if (!res.success) { $('ccBox').innerHTML = '<div class="alert red">' + escapeHtml(res.message) + '</div>'; return; }
+  const d = res.data, cc = d.chamCong;
+  let html = '<div class="line">👤 <b>' + escapeHtml(user.hoTen) + '</b> · ' + escapeHtml(user.phongBan) + '</div>' +
+    '<div class="line">📅 <b>' + fmtDate(d.ngay) + '</b> · Giờ hiện tại: <b>' + escapeHtml(d.gioHienTai) + '</b></div>';
+  if (cc) {
+    html += '<div class="line" style="margin-top:6px">Trạng thái: ' + badgeHtml(cc.trangThai, false) + '</div>' +
+      '<div class="line">Giờ vào: <b>' + (cc.gioVao || 'chưa chấm') + '</b>' +
+        (cc.diTre ? ' <span class="badge tu-choi">Trễ ' + cc.soPhutTre + 'p</span>' : '') + '</div>' +
+      '<div class="line">Giờ ra: <b>' + (cc.gioRa || 'chưa chấm') + '</b>' +
+        (cc.veSom ? ' <span class="badge cho-duyet">Sớm ' + cc.soPhutVeSom + 'p</span>' : '') + '</div>';
+    if (cc.gioRa) {
+      html += '<div class="line">Số giờ làm: <b>' + cc.soGioLam + 'h</b>' +
+        (cc.tangCa ? ' · Tăng ca: <b>' + cc.soGioTangCa + 'h</b>' : '') + '</div>';
+    }
+  } else {
+    html += '<div class="alert blue" style="margin-top:8px">Hôm nay bạn chưa chấm công.</div>';
+  }
+  if (!d.choPhepChamCong) html += '<div class="alert orange">Chấm công đang tạm khóa bởi quản lý.</div>';
+  $('ccBox').innerHTML = html;
+}
+
+async function doCheckIn() {
+  const res = await api('checkIn', { userID: user.userID, ghiChu: $('ccGhiChu').value.trim() });
+  if (res.success) { toast(res.message); $('ccGhiChu').value = ''; } else { alert(res.message); }
+  loadChamCong();
+}
+
+async function doCheckOut() {
+  const res = await api('checkOut', { userID: user.userID, ghiChu: $('ccGhiChu').value.trim() });
+  if (res.success) { toast(res.message); $('ccGhiChu').value = ''; } else { alert(res.message); }
+  loadChamCong();
+}
+
+/* ---------- V3.2 CÔNG CỦA TÔI ---------- */
+async function openCongToi() {
+  fillThangNam('ctThang', 'ctNam');
+  showScreen('scr-congtoi', 'Công của tôi');
+  loadCongToi();
+}
+
+async function loadCongToi() {
+  $('congToiBox').innerHTML = '<div class="muted" style="margin-top:12px">Đang tải...</div>';
+  const res = await api('getMyAttendance', { userID: user.userID, month: Number($('ctThang').value), year: Number($('ctNam').value) });
+  if (!res.success) { $('congToiBox').innerHTML = '<div class="alert red">' + escapeHtml(res.message) + '</div>'; return; }
+  const d = res.data, t = d.tongHop;
+
+  let html = '<div class="card"><h3>📊 Tổng hợp tháng ' + d.month + '/' + d.year + '</h3>' +
+    '<div class="line">Số ngày có công: <b>' + t.soNgayCong + '</b> · Tổng giờ làm: <b>' + t.tongGioLam + 'h</b></div>' +
+    '<div class="line">Tăng ca: <b>' + t.tongGioTangCa + 'h</b> · Đi trễ: <b>' + t.soLanDiTre + '</b> lần · Về sớm: <b>' + t.soLanVeSom + '</b> lần</div>' +
+    '<div class="line">Nghỉ có phép: <b>' + t.nghiCoPhep + '</b> ngày · Không phép: <b>' + t.nghiKhongPhep + '</b> · Ốm: <b>' + t.nghiOm + '</b> · Việc riêng: <b>' + t.nghiViecRieng + '</b></div>' +
+    '</div>';
+
+  if (!d.chamCong.length) {
+    html += '<div class="alert blue">Chưa có ngày công nào trong tháng.</div>';
+  }
+  d.chamCong.forEach(c => {
+    html += '<div class="card">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center"><b>' + fmtDate(c.ngay) + '</b>' + badgeHtml(c.trangThai, false) + '</div>' +
+      '<div class="line">Vào <b>' + (c.gioVao || '--') + '</b> · Ra <b>' + (c.gioRa || '--') + '</b> · <b>' + c.soGioLam + 'h</b>' +
+      (c.diTre ? ' · <span style="color:var(--do)">trễ ' + c.soPhutTre + 'p</span>' : '') +
+      (c.veSom ? ' · <span style="color:var(--cam)">sớm ' + c.soPhutVeSom + 'p</span>' : '') +
+      (c.tangCa ? ' · OT ' + c.soGioTangCa + 'h' : '') + '</div>' +
+      (c.ghiChuNhanVien ? '<div class="line muted">NV: ' + escapeHtml(c.ghiChuNhanVien) + '</div>' : '') +
+      (c.ghiChuQuanLy ? '<div class="line muted">QL: ' + escapeHtml(c.ghiChuQuanLy) + '</div>' : '') +
+      '</div>';
+  });
+
+  if (d.nghi.length) {
+    html += '<div class="section-title">📅 Ngày nghỉ đã duyệt trong tháng</div><div class="card">';
+    d.nghi.forEach(lv => {
+      html += '<div class="line">' + fmtDate(lv.ngayNghi) + ' - ' + escapeHtml(tenCaNgan(lv.caNghi)) + ' - ' + escapeHtml(lv.loaiNghi) + '</div>';
+    });
+    html += '</div>';
+  }
+  $('congToiBox').innerHTML = html;
+}
+
+/* ---------- V3.3 DASHBOARD NHÂN SỰ ---------- */
+let hrData = null;
+
+async function openHRDash() {
+  if (!$('hrNgay').value) $('hrNgay').value = todayStr();
+  showScreen('scr-hrdash', 'Dashboard nhân sự');
+  loadHRDash();
+}
+
+async function loadHRDash() {
+  $('hrDashBox').innerHTML = '<div class="muted" style="margin-top:12px">Đang tải...</div>';
+  const res = await api('getHRDashboard', { userID: user.userID, ngay: $('hrNgay').value });
+  if (!res.success) { hrData = null; $('hrDashBox').innerHTML = '<div class="alert red">' + escapeHtml(res.message) + '</div>'; return; }
+  hrData = res.data;
+  const d = hrData, t = d.tongQuan;
+
+  let html = '<div class="stat-grid">' +
+    '<div class="stat"><div class="num">' + t.tongActive + '</div><div class="lbl">Nhân viên active</div></div>' +
+    '<div class="stat"><div class="num">' + t.daChamVao + '</div><div class="lbl">Đã chấm vào</div></div>' +
+    '<div class="stat' + (t.chuaChamVao > 0 ? ' warn' : '') + '"><div class="num">' + t.chuaChamVao + '</div><div class="lbl">Chưa chấm vào</div></div>' +
+    '<div class="stat"><div class="num">' + t.daChamRa + '</div><div class="lbl">Đã chấm ra</div></div>' +
+    '<div class="stat' + (t.diTre > 0 ? ' warn' : '') + '"><div class="num">' + t.diTre + '</div><div class="lbl">Đi trễ</div></div>' +
+    '<div class="stat"><div class="num">' + t.veSom + '</div><div class="lbl">Về sớm</div></div>' +
+    '<div class="stat"><div class="num">' + t.nghi + '</div><div class="lbl">Nghỉ (đã duyệt)</div></div>' +
+    '<div class="stat"><div class="num">' + t.tangCa + '</div><div class="lbl">Tăng ca</div></div>' +
+    '</div>';
+
+  html += '<div class="btn-row">' +
+    '<button class="btn small" onclick="copyHRReport()">📋 Copy báo cáo</button>' +
+    '<button class="btn small orange" onclick="copyHRDS(\'chuaChamVao\')">📋 Chưa chấm vào</button>' +
+    '</div><div class="btn-row">' +
+    '<button class="btn small purple" onclick="copyHRDS(\'nghi\')">📋 DS nghỉ</button>' +
+    '<button class="btn small red" onclick="copyHRDS(\'diTre\')">📋 DS đi trễ</button>' +
+    '</div>';
+
+  if (d.canhBao.length) {
+    d.canhBao.forEach(c => { html += '<div class="alert red">⚠ ' + escapeHtml(c) + '</div>'; });
+  }
+
+  html += '<div class="section-title">🏢 Theo phòng ban</div><div class="card">';
+  Object.keys(d.theoPhongBan).sort().forEach(pb => {
+    const p = d.theoPhongBan[pb];
+    html += '<div class="line"><b>' + escapeHtml(pb) + '</b>: ' + p.tongActive + ' NV · có mặt <b>' + p.coMat + '</b> · nghỉ ' + p.nghi + ' · chưa chấm ' + p.chuaCham + ' · trễ ' + p.diTre + '</div>';
+  });
+  html += '</div>';
+
+  function dsCard(tieuDe, ds, dongFn) {
+    let h = '<div class="section-title">' + tieuDe + ' (' + ds.length + ')</div><div class="card">';
+    if (!ds.length) h += '<div class="muted">Không có ai.</div>';
+    ds.forEach(x => { h += '<div class="line">' + dongFn(x) + '</div>'; });
+    return h + '</div>';
+  }
+  html += dsCard('⏳ Chưa chấm vào', d.dsChuaChamVao, x => escapeHtml(x.hoTen) + ' (' + escapeHtml(x.phongBan) + ')');
+  html += dsCard('🚪 Đã vào, chưa chấm ra', d.dsChuaChamRa, x => escapeHtml(x.hoTen) + ' (' + escapeHtml(x.phongBan) + ') - vào ' + escapeHtml(x.gioVao));
+  html += dsCard('🕒 Đi trễ', d.dsDiTre, x => escapeHtml(x.hoTen) + ' (' + escapeHtml(x.phongBan) + ') - trễ ' + x.soPhutTre + ' phút');
+  html += dsCard('🏃 Về sớm', d.dsVeSom, x => escapeHtml(x.hoTen) + ' (' + escapeHtml(x.phongBan) + ') - sớm ' + x.soPhutVeSom + ' phút');
+  html += dsCard('📅 Nghỉ hôm nay (đã duyệt)', d.dsNghi, x => escapeHtml(x.hoTen) + ' (' + escapeHtml(x.phongBan) + ') - ' + escapeHtml(tenCaNgan(x.caNghi)) + ' - ' + escapeHtml(x.loaiNghi));
+
+  $('hrDashBox').innerHTML = html;
+}
+
+function copyHRReport() {
+  if (!hrData) return;
+  const d = hrData, t = d.tongQuan;
+  let out = '📊 BÁO CÁO NHÂN SỰ HÔM NAY - ' + fmtDate(d.ngay) + '\n\n' +
+    'Tổng nhân viên active: ' + t.tongActive + '\n' +
+    'Đã chấm vào: ' + t.daChamVao + '\n' +
+    'Chưa chấm vào: ' + t.chuaChamVao + '\n' +
+    'Đã chấm ra: ' + t.daChamRa + '\n' +
+    'Đang nghỉ: ' + t.nghi + '\n' +
+    'Đi trễ: ' + t.diTre + '\n';
+  Object.keys(d.theoPhongBan).sort().forEach(pb => {
+    const p = d.theoPhongBan[pb];
+    out += '\n' + pb + ':\n- Có mặt: ' + p.coMat + '\n- Nghỉ: ' + p.nghi + '\n- Chưa chấm: ' + p.chuaCham + '\n- Đi trễ: ' + p.diTre + '\n';
+  });
+  out += '\nPM lưu ý sắp xếp nhân sự trong ngày.';
+  copyText(out, 'báo cáo nhân sự');
+}
+
+function copyHRDS(loai) {
+  if (!hrData) return;
+  const d = hrData;
+  let out = '', label = '';
+  if (loai === 'chuaChamVao') {
+    label = 'danh sách chưa chấm vào';
+    out = '⏳ CHƯA CHẤM VÀO - ' + fmtDate(d.ngay) + '\n\n';
+    out += d.dsChuaChamVao.length ? d.dsChuaChamVao.map(x => '- ' + x.hoTen + ' (' + x.phongBan + ')').join('\n') : '(Không có ai)';
+  } else if (loai === 'nghi') {
+    label = 'danh sách nghỉ hôm nay';
+    out = '📅 NGHỈ HÔM NAY - ' + fmtDate(d.ngay) + '\n\n';
+    out += d.dsNghi.length ? d.dsNghi.map(x => '- ' + x.hoTen + ' (' + x.phongBan + ') - ' + tenCaNgan(x.caNghi) + ' - ' + x.loaiNghi).join('\n') : '(Không có ai nghỉ)';
+  } else {
+    label = 'danh sách đi trễ';
+    out = '🕒 ĐI TRỄ - ' + fmtDate(d.ngay) + '\n\n';
+    out += d.dsDiTre.length ? d.dsDiTre.map(x => '- ' + x.hoTen + ' (' + x.phongBan + '): trễ ' + x.soPhutTre + ' phút').join('\n') : '(Không có ai đi trễ)';
+  }
+  copyText(out, label);
+}
+
+/* ---------- V3.4 BẢNG CÔNG NGÀY ---------- */
+let bcnData = null;
+
+async function openBCNgay() {
+  if (!options) await loadOptions();
+  fillSelect($('bcnPhongBan'), options.phongBans, p => p, p => p, { value: '', label: 'Tất cả phòng ban' });
+  fillSelect($('tcNhanVien'), options.nhanViens || [], n => n.userID, n => n.hoTen + ' (' + n.phongBan + ')');
+  if (!$('bcnNgay').value) $('bcnNgay').value = todayStr();
+  showScreen('scr-bcngay', 'Bảng công ngày');
+  loadBCNgay();
+}
+
+async function loadBCNgay() {
+  $('bcNgayBox').innerHTML = '<div class="muted" style="margin-top:12px">Đang tải...</div>';
+  const res = await api('getAttendanceByDay', {
+    userID: user.userID, ngay: $('bcnNgay').value,
+    filters: { phongBan: $('bcnPhongBan').value }
+  });
+  if (!res.success) { bcnData = null; $('bcNgayBox').innerHTML = '<div class="alert red">' + escapeHtml(res.message) + '</div>'; return; }
+  bcnData = res.data;
+
+  let html = '<button class="btn small purple" onclick="copyBCNgay()">📋 Copy bảng công ngày</button>';
+
+  if (bcnData.chuaCham.length) {
+    html += '<div class="card"><h3>⏳ Chưa có công (' + bcnData.chuaCham.length + ')</h3>';
+    bcnData.chuaCham.forEach(x => {
+      html += '<div class="line">' + escapeHtml(x.hoTen) + ' (' + escapeHtml(x.phongBan) + ') <span class="muted">- dùng form "Thêm công tay" ở trên</span></div>';
+    });
+    html += '</div>';
+  }
+
+  if (!bcnData.chamCong.length) html += '<div class="alert blue">Chưa có dòng chấm công nào trong ngày.</div>';
+
+  bcnData.chamCong.forEach(c => {
+    const id = c.chamCongID;
+    let ttSelect = '<select id="bct-' + id + '">';
+    ['Chưa hoàn tất', 'Hoàn tất', 'Quên chấm vào', 'Quên chấm ra', 'Quản lý chỉnh', 'Nghỉ'].forEach(t => {
+      ttSelect += '<option' + (t === c.trangThai ? ' selected' : '') + '>' + t + '</option>';
+    });
+    ttSelect += '</select>';
+    html += '<div class="card">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center"><b>' + escapeHtml(c.hoTen) + '</b>' + badgeHtml(c.trangThai, false) + '</div>' +
+      '<div class="line">' + escapeHtml(c.phongBan) + ' · ' + c.soGioLam + 'h' +
+      (c.diTre ? ' · <span style="color:var(--do)">trễ ' + c.soPhutTre + 'p</span>' : '') +
+      (c.veSom ? ' · <span style="color:var(--cam)">sớm ' + c.soPhutVeSom + 'p</span>' : '') +
+      (c.tangCa ? ' · OT ' + c.soGioTangCa + 'h' : '') + '</div>' +
+      (c.ghiChuNhanVien ? '<div class="line muted">NV: ' + escapeHtml(c.ghiChuNhanVien) + '</div>' : '') +
+      '<div class="filter-grid">' +
+        '<div><label>Giờ vào</label><input type="time" id="bcv-' + id + '" value="' + escapeHtml(c.gioVao) + '"></div>' +
+        '<div><label>Giờ ra</label><input type="time" id="bcr-' + id + '" value="' + escapeHtml(c.gioRa) + '"></div>' +
+      '</div>' +
+      '<label>Trạng thái</label>' + ttSelect +
+      '<label>Ghi chú quản lý</label><input type="text" id="bcg-' + id + '" value="' + escapeHtml(c.ghiChuQuanLy) + '">' +
+      '<button class="btn small green" onclick="suaCong(\'' + id + '\')">💾 Lưu chỉnh sửa</button>' +
+      '</div>';
+  });
+  $('bcNgayBox').innerHTML = html;
+}
+
+async function suaCong(id) {
+  const lyDo = prompt('Lý do chỉnh sửa công (bắt buộc, sẽ ghi vào lịch sử):');
+  if (lyDo === null) return;
+  if (!lyDo.trim()) { alert('Phải nhập lý do chỉnh sửa.'); return; }
+  const res = await api('updateAttendanceByManager', {
+    managerUserID: user.userID, chamCongID: id,
+    gioVao: $('bcv-' + id).value, gioRa: $('bcr-' + id).value,
+    trangThai: $('bct-' + id).value, ghiChuQuanLy: $('bcg-' + id).value.trim(),
+    lyDo: lyDo.trim()
+  });
+  res.success ? toast(res.message) : alert(res.message);
+  loadBCNgay();
+}
+
+async function createCongTay() {
+  const lyDo = $('tcLyDo').value.trim();
+  if (!$('tcNhanVien').value) { toast('Chọn nhân viên.'); return; }
+  if (!lyDo) { toast('Nhập lý do thêm công.'); return; }
+  const res = await api('createAttendanceByManager', {
+    managerUserID: user.userID, targetUserID: $('tcNhanVien').value,
+    ngay: $('bcnNgay').value, gioVao: $('tcGioVao').value, gioRa: $('tcGioRa').value,
+    trangThai: $('tcTrangThai').value, lyDo: lyDo
+  });
+  res.success ? toast(res.message) : alert(res.message);
+  if (res.success) { $('tcLyDo').value = ''; loadBCNgay(); }
+}
+
+function copyBCNgay() {
+  if (!bcnData) return;
+  let out = '🗓 BẢNG CÔNG NGÀY ' + fmtDate(bcnData.ngay) + '\n\n';
+  if (!bcnData.chamCong.length) out += '(Chưa có dòng chấm công)\n';
+  bcnData.chamCong.forEach(c => {
+    out += '- ' + c.hoTen + ' (' + c.phongBan + '): vào ' + (c.gioVao || '--') + ', ra ' + (c.gioRa || '--') + ', ' + c.soGioLam + 'h' +
+      (c.diTre ? ', trễ ' + c.soPhutTre + 'p' : '') + (c.veSom ? ', sớm ' + c.soPhutVeSom + 'p' : '') +
+      (c.tangCa ? ', OT ' + c.soGioTangCa + 'h' : '') + ' [' + c.trangThai + ']\n';
+  });
+  if (bcnData.chuaCham.length) {
+    out += '\nCHƯA CÓ CÔNG:\n' + bcnData.chuaCham.map(x => '- ' + x.hoTen + ' (' + x.phongBan + ')').join('\n');
+  }
+  copyText(out, 'bảng công ngày');
+}
+
+/* ---------- V3.5 BẢNG CÔNG THÁNG ---------- */
+let bctData = null;
+
+async function openBCThang() {
+  if (!options) await loadOptions();
+  fillThangNam('bctThang', 'bctNam');
+  fillSelect($('bctPhongBan'), options.phongBans, p => p, p => p, { value: '', label: 'Tất cả phòng ban' });
+  showScreen('scr-bcthang', 'Bảng công tháng');
+  loadBCThang();
+}
+
+async function loadBCThang() {
+  $('bcThangBox').innerHTML = '<div class="muted" style="margin-top:12px">Đang tải...</div>';
+  const res = await api('getMonthlyAttendanceReport', {
+    userID: user.userID, month: Number($('bctThang').value), year: Number($('bctNam').value),
+    filters: { phongBan: $('bctPhongBan').value }
+  });
+  if (!res.success) { bctData = null; $('bcThangBox').innerHTML = '<div class="alert red">' + escapeHtml(res.message) + '</div>'; return; }
+  bctData = res.data;
+
+  let html = '<button class="btn small purple" onclick="copyBCThang()">📋 Copy bảng công tháng</button>';
+  if (!bctData.baoCao.length) html += '<div class="alert blue">Không có nhân viên nào khớp bộ lọc.</div>';
+  bctData.baoCao.forEach(r => {
+    html += '<div class="card">' +
+      '<h3>' + escapeHtml(r.hoTen) + ' <span class="muted">(' + escapeHtml(r.phongBan) + ')</span></h3>' +
+      '<div class="line">Ngày có công: <b>' + r.soNgayCong + '</b> · Giờ làm: <b>' + r.tongGioLam + 'h</b> · Tăng ca: <b>' + r.tongGioTangCa + 'h</b></div>' +
+      '<div class="line">Đi trễ: ' + r.soLanDiTre + ' lần · Về sớm: ' + r.soLanVeSom + ' lần</div>' +
+      '<div class="line">Nghỉ: có phép ' + r.nghiCoPhep + ' · không phép ' + r.nghiKhongPhep + ' · ốm ' + r.nghiOm + ' · việc riêng ' + r.nghiViecRieng + '</div>' +
+      '<div class="line">Tổng nghỉ quy đổi: <b>' + r.tongNgayNghiQuyDoi + '</b> ngày · Công quy đổi (giờ/8): <b>' + r.soNgayCongQuyDoi + '</b></div>' +
+      '</div>';
+  });
+  $('bcThangBox').innerHTML = html;
+}
+
+function copyBCThang() {
+  if (!bctData) return;
+  let out = '🧾 BẢNG CÔNG THÁNG ' + String(bctData.month).padStart(2, '0') + '/' + bctData.year + '\n\n';
+  bctData.baoCao.forEach(r => {
+    out += r.hoTen + ' (' + r.phongBan + '): ' + r.soNgayCong + ' ngày công, ' + r.tongGioLam + 'h, OT ' + r.tongGioTangCa + 'h, trễ ' + r.soLanDiTre + ', sớm ' + r.soLanVeSom +
+      ', nghỉ CP ' + r.nghiCoPhep + ' / KP ' + r.nghiKhongPhep + ' / ốm ' + r.nghiOm + ' / VR ' + r.nghiViecRieng + '\n';
+  });
+  copyText(out.trim(), 'bảng công tháng');
+}
+
+/* ---------- V3.6 QUẢN LÝ NHÂN VIÊN ---------- */
+let nvMapData = {};
+let nvEditID = null;
+
+async function openNhanVien() {
+  if (!options) await loadOptions();
+  fillSelect($('nvLocPB'), options.phongBans, p => p, p => p, { value: '', label: 'Tất cả phòng ban' });
+  fillSelect($('nvPhongBan'), options.phongBans, p => p, p => p);
+  showScreen('scr-nhanvien', 'Quản lý nhân viên');
+  loadNhanVien();
+}
+
+async function loadNhanVien() {
+  $('nhanVienBox').innerHTML = '<div class="muted" style="margin-top:12px">Đang tải...</div>';
+  const res = await api('getEmployees', {
+    userID: user.userID,
+    filters: { phongBan: $('nvLocPB').value, trangThai: $('nvLocTT').value }
+  });
+  if (!res.success) { $('nhanVienBox').innerHTML = '<div class="alert red">' + escapeHtml(res.message) + '</div>'; return; }
+
+  nvMapData = {};
+  let html = '';
+  res.data.forEach(nv => {
+    nvMapData[nv.userID] = nv;
+    const dangLam = nv.trangThaiLamViec === 'Đang làm';
+    html += '<div class="card">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center"><b>' + escapeHtml(nv.hoTen) + '</b>' + badgeHtml(nv.trangThaiLamViec, false) + '</div>' +
+      '<div class="line">' + escapeHtml(nv.phongBan) + (nv.chucVu ? ' · ' + escapeHtml(nv.chucVu) : '') + (nv.soDienThoai ? ' · 📞 ' + escapeHtml(nv.soDienThoai) : '') + '</div>' +
+      '<div class="line">Lương: ' + escapeHtml(nv.hinhThucLuong) +
+      (nv.luongCoBan ? ' · CB ' + fmtMoney(nv.luongCoBan) + 'đ' : '') +
+      (nv.luongTheoGio ? ' · ' + fmtMoney(nv.luongTheoGio) + 'đ/h' : '') +
+      (nv.phuCapCoDinh ? ' · PC ' + fmtMoney(nv.phuCapCoDinh) + 'đ' : '') + '</div>' +
+      (nv.ngayVaoLam ? '<div class="line muted">Vào làm: ' + fmtDate(nv.ngayVaoLam) + (nv.ngayNghiViec ? ' · Nghỉ việc: ' + fmtDate(nv.ngayNghiViec) : '') + '</div>' : '') +
+      '<div class="btn-row">' +
+        '<button class="btn small" onclick="suaNV(\'' + nv.userID + '\')">✏️ Sửa</button>' +
+        (dangLam ? '<button class="btn red small" onclick="khoaNV(\'' + nv.userID + '\')">🔒 Nghỉ việc</button>' : '') +
+      '</div>' +
+      '</div>';
+  });
+  $('nhanVienBox').innerHTML = html || '<div class="alert blue">Chưa có nhân viên nào khớp bộ lọc.</div>';
+}
+
+function suaNV(userID) {
+  const nv = nvMapData[userID];
+  if (!nv) return;
+  nvEditID = userID;
+  $('nvFormTitle').textContent = '✏️ Sửa: ' + nv.hoTen + ' (' + userID + ')';
+  $('nvPinNote').textContent = '(để trống nếu không đổi PIN)';
+  $('nvHoTen').value = nv.hoTen;
+  $('nvMaPIN').value = '';
+  $('nvSDT').value = nv.soDienThoai;
+  $('nvPhongBan').value = nv.phongBan;
+  $('nvChucVu').value = nv.chucVu;
+  $('nvNgayVao').value = nv.ngayVaoLam || '';
+  $('nvHinhThuc').value = nv.hinhThucLuong || 'Theo tháng';
+  $('nvLuongCB').value = nv.luongCoBan || '';
+  $('nvLuongGio').value = nv.luongTheoGio || '';
+  $('nvPhuCap').value = nv.phuCapCoDinh || '';
+  $('nvSTK').value = nv.soTaiKhoan;
+  $('nvNganHang').value = nv.tenNganHang;
+  $('nvGhiChu').value = nv.ghiChu;
+  $('nvBtnHuySua').classList.remove('hidden');
+  window.scrollTo(0, 0);
+}
+
+function resetNVForm() {
+  nvEditID = null;
+  $('nvFormTitle').textContent = '➕ Thêm nhân viên mới';
+  $('nvPinNote').textContent = '(bắt buộc khi thêm mới)';
+  ['nvHoTen', 'nvMaPIN', 'nvSDT', 'nvChucVu', 'nvNgayVao', 'nvLuongCB', 'nvLuongGio', 'nvPhuCap', 'nvSTK', 'nvNganHang', 'nvGhiChu'].forEach(id => { $(id).value = ''; });
+  $('nvBtnHuySua').classList.add('hidden');
+}
+
+async function saveNhanVien() {
+  const data = {
+    managerUserID: user.userID,
+    hoTen: $('nvHoTen').value.trim(),
+    soDienThoai: $('nvSDT').value.trim(),
+    phongBan: $('nvPhongBan').value,
+    chucVu: $('nvChucVu').value.trim(),
+    ngayVaoLam: $('nvNgayVao').value,
+    hinhThucLuong: $('nvHinhThuc').value,
+    luongCoBan: $('nvLuongCB').value,
+    luongTheoGio: $('nvLuongGio').value,
+    phuCapCoDinh: $('nvPhuCap').value,
+    soTaiKhoan: $('nvSTK').value.trim(),
+    tenNganHang: $('nvNganHang').value.trim(),
+    ghiChu: $('nvGhiChu').value.trim()
+  };
+  const pin = $('nvMaPIN').value.trim();
+  if (!data.hoTen) { toast('Nhập họ tên.'); return; }
+
+  let res;
+  if (nvEditID) {
+    data.targetUserID = nvEditID;
+    if (pin) data.maPIN = pin;
+    res = await api('updateEmployee', data);
+  } else {
+    if (!pin) { toast('Nhập mã PIN cho nhân viên mới.'); return; }
+    data.maPIN = pin;
+    res = await api('createEmployee', data);
+  }
+  res.success ? toast(res.message) : alert(res.message);
+  if (res.success) {
+    resetNVForm();
+    options = null; // danh sách nhân viên đổi -> nạp lại options
+    await loadOptions();
+    loadNhanVien();
+  }
+}
+
+async function khoaNV(userID) {
+  const nv = nvMapData[userID];
+  if (!confirm('Khóa nhân viên ' + nv.hoTen + ' nghỉ việc?\n- Không đăng nhập được nữa\n- Giữ nguyên toàn bộ lịch sử')) return;
+  const res = await api('deactivateEmployee', { managerUserID: user.userID, targetUserID: userID });
+  res.success ? toast(res.message) : alert(res.message);
+  if (res.success) { options = null; await loadOptions(); loadNhanVien(); }
+}
+
+/* ---------- V3.7 TẠM ỨNG CỦA TÔI ---------- */
+async function openTamUngToi() {
+  showScreen('scr-tamungtoi', 'Tạm ứng của tôi');
+  loadTamUngToi();
+}
+
+async function guiTamUng() {
+  const res = await api('submitAdvance', { userID: user.userID, soTien: $('tuSoTien').value, lyDo: $('tuLyDo').value.trim() });
+  res.success ? toast(res.message) : alert(res.message);
+  if (res.success) { $('tuSoTien').value = ''; $('tuLyDo').value = ''; loadTamUngToi(); }
+}
+
+async function loadTamUngToi() {
+  $('tamUngToiBox').innerHTML = '<div class="muted" style="margin-top:12px">Đang tải...</div>';
+  const res = await api('getMyAdvances', { userID: user.userID });
+  if (!res.success) { $('tamUngToiBox').innerHTML = '<div class="alert red">' + escapeHtml(res.message) + '</div>'; return; }
+  let html = '';
+  res.data.forEach(r => {
+    html += '<div class="card">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center"><b>' + fmtMoney(r.soTien) + 'đ</b>' + badgeHtml(r.trangThai, false) + '</div>' +
+      '<div class="line">Ngày đề nghị: ' + fmtDate(r.ngayDeNghi) + '</div>' +
+      '<div class="line">Lý do: ' + escapeHtml(r.lyDo) + '</div>' +
+      (r.ghiChu ? '<div class="line muted">' + escapeHtml(r.ghiChu) + '</div>' : '') +
+      '</div>';
+  });
+  $('tamUngToiBox').innerHTML = html || '<div class="alert blue">Bạn chưa có đề nghị tạm ứng nào.</div>';
+}
+
+/* ---------- V3.8 TẠM ỨNG (QUẢN LÝ) ---------- */
+let tuqlData = [];
+
+async function openTamUngQL() {
+  if (!options) await loadOptions();
+  fillSelect($('tuqlPhongBan'), options.phongBans, p => p, p => p, { value: '', label: 'Tất cả phòng ban' });
+  showScreen('scr-tamungql', 'Duyệt tạm ứng');
+  loadTamUngQL();
+}
+
+async function loadTamUngQL() {
+  $('tamUngQLBox').innerHTML = '<div class="muted" style="margin-top:12px">Đang tải...</div>';
+  const res = await api('getAllAdvances', {
+    userID: user.userID,
+    filters: { trangThai: $('tuqlTrangThai').value, phongBan: $('tuqlPhongBan').value }
+  });
+  if (!res.success) { tuqlData = []; $('tamUngQLBox').innerHTML = '<div class="alert red">' + escapeHtml(res.message) + '</div>'; return; }
+  tuqlData = res.data;
+
+  let html = '';
+  tuqlData.forEach(r => {
+    html += '<div class="card">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center"><b>' + escapeHtml(r.hoTen) + ' - ' + fmtMoney(r.soTien) + 'đ</b>' + badgeHtml(r.trangThai, false) + '</div>' +
+      '<div class="line">' + escapeHtml(r.phongBan) + ' · đề nghị ' + fmtDate(r.ngayDeNghi) + '</div>' +
+      '<div class="line">Lý do: ' + escapeHtml(r.lyDo) + '</div>' +
+      (r.ghiChu ? '<div class="line muted">' + escapeHtml(r.ghiChu) + '</div>' : '') +
+      (r.trangThai === 'Chờ duyệt'
+        ? '<div class="btn-row">' +
+          '<button class="btn green small" onclick="duyetTU(\'' + r.tamUngID + '\')">Duyệt</button>' +
+          '<button class="btn red small" onclick="tuChoiTU(\'' + r.tamUngID + '\')">Từ chối</button>' +
+          '</div>'
+        : '') +
+      (r.trangThai === 'Đã duyệt' ? '<button class="btn small green" onclick="daChiTU(\'' + r.tamUngID + '\')">💵 Đánh dấu ĐÃ CHI</button>' : '') +
+      ((r.trangThai === 'Đã duyệt' || r.trangThai === 'Từ chối' || r.trangThai === 'Đã chi')
+        ? '<button class="btn small" style="background:#455a64" onclick="copyTinTamUng(\'' + r.tamUngID + '\')">📋 Copy tin Zalo</button>' : '') +
+      '</div>';
+  });
+  $('tamUngQLBox').innerHTML = html || '<div class="alert blue">Không có đề nghị tạm ứng nào khớp bộ lọc.</div>';
+}
+
+async function duyetTU(id) {
+  if (!confirm('Duyệt đề nghị tạm ứng này?')) return;
+  const res = await api('approveAdvance', { managerUserID: user.userID, tamUngID: id });
+  res.success ? toast(res.message) : alert(res.message);
+  loadTamUngQL();
+}
+
+async function tuChoiTU(id) {
+  const lyDo = prompt('Lý do từ chối (bắt buộc):');
+  if (lyDo === null) return;
+  if (!lyDo.trim()) { alert('Phải nhập lý do.'); return; }
+  const res = await api('rejectAdvance', { managerUserID: user.userID, tamUngID: id, lyDo: lyDo.trim() });
+  res.success ? toast(res.message) : alert(res.message);
+  loadTamUngQL();
+}
+
+async function daChiTU(id) {
+  if (!confirm('Xác nhận đã chi tiền tạm ứng này?')) return;
+  const res = await api('markAdvancePaid', { managerUserID: user.userID, tamUngID: id });
+  res.success ? toast(res.message) : alert(res.message);
+  loadTamUngQL();
+}
+
+function copyTamUngChoDuyet() {
+  const ds = tuqlData.filter(r => r.trangThai === 'Chờ duyệt');
+  let out = '💵 TẠM ỨNG CHỜ DUYỆT\n\n';
+  out += ds.length ? ds.map(r => '- ' + r.hoTen + ' (' + r.phongBan + '): ' + fmtMoney(r.soTien) + 'đ - ' + r.lyDo).join('\n') : '(Không có đề nghị nào)';
+  out += '\n\nPM vui lòng vào app duyệt.';
+  copyText(out, 'danh sách tạm ứng chờ duyệt');
+}
+
+function copyTinTamUng(id) {
+  const r = tuqlData.find(x => x.tamUngID === id);
+  if (!r) return;
+  let out;
+  if (r.trangThai === 'Từ chối') {
+    out = '❌ TẠM ỨNG CHƯA ĐƯỢC DUYỆT\n\nNhân viên: ' + r.hoTen + '\nSố tiền: ' + fmtMoney(r.soTien) + 'đ\n' +
+      (r.ghiChu ? r.ghiChu + '\n' : '') + '\nBạn trao đổi thêm với PM nếu cần nhé.';
+  } else {
+    out = '✅ TẠM ỨNG ' + (r.trangThai === 'Đã chi' ? 'ĐÃ CHI' : 'ĐÃ ĐƯỢC DUYỆT') + '\n\nNhân viên: ' + r.hoTen +
+      '\nSố tiền: ' + fmtMoney(r.soTien) + 'đ\nNgày đề nghị: ' + fmtDate(r.ngayDeNghi) +
+      '\n\n' + (r.trangThai === 'Đã chi' ? 'Tiền đã được chi. Vui lòng kiểm tra lại.' : 'Liên hệ quản lý để nhận tiền nhé.');
+  }
+  copyText(out, 'tin tạm ứng');
+}
+
+/* ---------- V3.9 THƯỞNG / PHẠT ---------- */
+let tpData = [];
+
+async function openThuongPhat() {
+  if (!options) await loadOptions();
+  fillThangNam('tpThang', 'tpNam');
+  fillSelect($('tpNhanVien'), options.nhanViens || [], n => n.userID, n => n.hoTen + ' (' + n.phongBan + ')');
+  showScreen('scr-thuongphat', 'Thưởng / phạt');
+  loadThuongPhat();
+}
+
+async function loadThuongPhat() {
+  $('thuongPhatBox').innerHTML = '<div class="muted" style="margin-top:12px">Đang tải...</div>';
+  const res = await api('getBonusPenaltyList', {
+    userID: user.userID,
+    filters: { thang: Number($('tpThang').value), nam: Number($('tpNam').value) }
+  });
+  if (!res.success) { tpData = []; $('thuongPhatBox').innerHTML = '<div class="alert red">' + escapeHtml(res.message) + '</div>'; return; }
+  tpData = res.data;
+
+  let html = '';
+  tpData.forEach(r => {
+    const mauLoai = (r.loai === 'Thưởng' || r.loai === 'Phụ cấp') ? 'var(--xanh-la)' : 'var(--do)';
+    html += '<div class="card">' +
+      '<div class="line"><b>' + escapeHtml(r.hoTen) + '</b> (' + escapeHtml(r.phongBan) + ') · <b style="color:' + mauLoai + '">' + escapeHtml(r.loai) + ' ' + fmtMoney(r.soTien) + 'đ</b></div>' +
+      '<div class="line">Lý do: ' + escapeHtml(r.lyDo) + '</div>' +
+      '<div class="line muted">Tạo lúc ' + escapeHtml(r.thoiGianTao) + '</div>' +
+      '<div class="btn-row">' +
+        '<button class="btn small" onclick="suaTP(\'' + r.thuongPhatID + '\')">✏️ Sửa tiền</button>' +
+        '<button class="btn red small" onclick="xoaTP(\'' + r.thuongPhatID + '\')">Xóa</button>' +
+      '</div>' +
+      '</div>';
+  });
+  $('thuongPhatBox').innerHTML = html || '<div class="alert blue">Chưa có khoản nào trong tháng.</div>';
+}
+
+async function themThuongPhat() {
+  const res = await api('createBonusPenalty', {
+    managerUserID: user.userID, targetUserID: $('tpNhanVien').value,
+    thang: Number($('tpThang').value), nam: Number($('tpNam').value),
+    loai: $('tpLoai').value, soTien: $('tpSoTien').value, lyDo: $('tpLyDo').value.trim()
+  });
+  res.success ? toast(res.message) : alert(res.message);
+  if (res.success) { $('tpSoTien').value = ''; $('tpLyDo').value = ''; loadThuongPhat(); }
+}
+
+async function suaTP(id) {
+  const r = tpData.find(x => x.thuongPhatID === id);
+  const v = prompt('Số tiền mới cho khoản "' + r.loai + ' - ' + r.lyDo + '" (hiện tại: ' + fmtMoney(r.soTien) + 'đ):', r.soTien);
+  if (v === null) return;
+  const res = await api('updateBonusPenalty', { managerUserID: user.userID, thuongPhatID: id, soTien: v });
+  res.success ? toast(res.message) : alert(res.message);
+  loadThuongPhat();
+}
+
+async function xoaTP(id) {
+  const lyDo = prompt('Lý do xóa khoản này (ghi vào lịch sử):');
+  if (lyDo === null) return;
+  const res = await api('deleteBonusPenalty', { managerUserID: user.userID, thuongPhatID: id, lyDo: lyDo.trim() });
+  res.success ? toast(res.message) : alert(res.message);
+  loadThuongPhat();
+}
+
+/* ---------- V3.10 TĂNG CA ---------- */
+let otData = [];
+
+async function openTangCa() {
+  if (!options) await loadOptions();
+  fillSelect($('otNhanVien'), options.nhanViens || [], n => n.userID, n => n.hoTen + ' (' + n.phongBan + ')');
+  if (!$('otTuNgay').value) {
+    $('otTuNgay').value = addDays(todayStr(), -7);
+    $('otDenNgay').value = addDays(todayStr(), 7);
+  }
+  if (!$('otNgay').value) $('otNgay').value = todayStr();
+  showScreen('scr-tangca', 'Tăng ca');
+  loadTangCa();
+}
+
+async function loadTangCa() {
+  $('tangCaBox').innerHTML = '<div class="muted" style="margin-top:12px">Đang tải...</div>';
+  const res = await api('getOvertimeList', {
+    userID: user.userID,
+    filters: { tuNgay: $('otTuNgay').value, denNgay: $('otDenNgay').value }
+  });
+  if (!res.success) { otData = []; $('tangCaBox').innerHTML = '<div class="alert red">' + escapeHtml(res.message) + '</div>'; return; }
+  otData = res.data;
+
+  let html = '';
+  otData.forEach(r => {
+    html += '<div class="card">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center"><b>' + escapeHtml(r.hoTen) + '</b>' + badgeHtml(r.trangThai, false) + '</div>' +
+      '<div class="line">' + escapeHtml(r.phongBan) + ' · ' + fmtDate(r.ngay) + ' · ' + escapeHtml(r.gioBatDau) + '-' + escapeHtml(r.gioKetThuc) + ' (<b>' + r.soGioTangCa + 'h</b>)</div>' +
+      '<div class="line">Lý do: ' + escapeHtml(r.lyDo) + '</div>' +
+      (r.trangThai === 'Chờ duyệt'
+        ? '<div class="btn-row">' +
+          '<button class="btn green small" onclick="duyetOT(\'' + r.tangCaID + '\')">Duyệt</button>' +
+          '<button class="btn red small" onclick="tuChoiOT(\'' + r.tangCaID + '\')">Từ chối</button>' +
+          '</div>'
+        : '') +
+      '</div>';
+  });
+  $('tangCaBox').innerHTML = html || '<div class="alert blue">Không có tăng ca nào trong khoảng ngày.</div>';
+}
+
+async function taoTangCa() {
+  const res = await api('createOvertime', {
+    managerUserID: user.userID, targetUserID: $('otNhanVien').value,
+    ngay: $('otNgay').value, gioBatDau: $('otGioBD').value, gioKetThuc: $('otGioKT').value,
+    lyDo: $('otLyDo').value.trim(), duyetLuon: $('otDuyetLuon').checked
+  });
+  res.success ? toast(res.message) : alert(res.message);
+  if (res.success) { $('otLyDo').value = ''; loadTangCa(); }
+}
+
+async function duyetOT(id) {
+  const res = await api('approveOvertime', { managerUserID: user.userID, tangCaID: id });
+  res.success ? toast(res.message) : alert(res.message);
+  loadTangCa();
+}
+
+async function tuChoiOT(id) {
+  const lyDo = prompt('Lý do từ chối tăng ca (bắt buộc):');
+  if (lyDo === null) return;
+  if (!lyDo.trim()) { alert('Phải nhập lý do.'); return; }
+  const res = await api('rejectOvertime', { managerUserID: user.userID, tangCaID: id, lyDo: lyDo.trim() });
+  res.success ? toast(res.message) : alert(res.message);
+  loadTangCa();
+}
+
+function copyTangCa() {
+  let out = '🌙 DANH SÁCH TĂNG CA (' + fmtDate($('otTuNgay').value) + ' - ' + fmtDate($('otDenNgay').value) + ')\n\n';
+  out += otData.length
+    ? otData.map(r => '- ' + r.hoTen + ' (' + r.phongBan + '): ' + fmtDate(r.ngay) + ' ' + r.gioBatDau + '-' + r.gioKetThuc + ' (' + r.soGioTangCa + 'h) [' + r.trangThai + ']').join('\n')
+    : '(Không có tăng ca)';
+  copyText(out, 'danh sách tăng ca');
+}
+
+/* ---------- V3.11 BẢNG LƯƠNG SƠ BỘ ---------- */
+async function openLuong() {
+  if (!options) await loadOptions();
+  fillThangNam('blThang', 'blNam');
+  fillSelect($('blPhongBan'), options.phongBans, p => p, p => p, { value: '', label: 'Tất cả phòng ban' });
+  showScreen('scr-luong', 'Bảng lương sơ bộ');
+  loadLuong();
+}
+
+async function loadLuong() {
+  $('luongBox').innerHTML = '<div class="muted" style="margin-top:12px">Đang tải...</div>';
+  const res = await api('getPayrollDraft', {
+    userID: user.userID, month: Number($('blThang').value), year: Number($('blNam').value),
+    filters: { phongBan: $('blPhongBan').value }
+  });
+  if (!res.success) { $('luongBox').innerHTML = '<div class="alert red">' + escapeHtml(res.message) + '</div>'; return; }
+
+  let html = '';
+  res.data.bangLuong.forEach(r => {
+    html += '<div class="card">' +
+      '<h3>' + escapeHtml(r.hoTen) + ' <span class="muted">(' + escapeHtml(r.phongBan) + ' · ' + escapeHtml(r.hinhThucLuong) + ')</span></h3>' +
+      '<div class="line">Giờ làm: <b>' + r.tongGioLam + 'h</b> · Tăng ca: ' + r.tongGioTangCa + 'h · Nghỉ CP ' + r.nghiCoPhep + ' / KP ' + r.nghiKhongPhep + '</div>' +
+      '<div class="line">Lương gốc: CB ' + fmtMoney(r.luongCoBan) + 'đ · Giờ ' + fmtMoney(r.luongTheoGio) + 'đ/h · PC cố định ' + fmtMoney(r.phuCapCoDinh) + 'đ</div>' +
+      '<div class="line">+ Thưởng ' + fmtMoney(r.thuong) + 'đ · + Phụ cấp ' + fmtMoney(r.phuCap) + 'đ</div>' +
+      '<div class="line">- Phạt ' + fmtMoney(r.phat) + 'đ · - Khấu trừ ' + fmtMoney(r.khauTru) + 'đ · - Tạm ứng đã chi ' + fmtMoney(r.tamUngDaChi) + 'đ</div>' +
+      '<div class="line" style="font-size:16px;margin-top:6px">💰 Tổng tạm tính: <b style="color:var(--xanh-dam)">' + fmtMoney(r.tongTamTinh) + 'đ</b></div>' +
+      (r.canhBao ? '<div class="alert orange" style="margin-top:8px">⚠ ' + escapeHtml(r.canhBao) + '</div>' : '') +
+      '</div>';
+  });
+  $('luongBox').innerHTML = html || '<div class="alert blue">Không có nhân viên "Đang làm" nào khớp bộ lọc.</div>';
+}
+
+/* ---------- V3.12 CẤU HÌNH NHÂN SỰ ---------- */
+async function openCauHinhNS() {
+  showScreen('scr-cauhinhns', 'Cấu hình nhân sự');
+  loadCauHinhNS();
+}
+
+async function loadCauHinhNS() {
+  $('cauHinhNSBox').innerHTML = '<div class="muted" style="margin-top:12px">Đang tải...</div>';
+  const res = await api('getAttendanceConfig', { userID: user.userID });
+  if (!res.success) { $('cauHinhNSBox').innerHTML = '<div class="alert red">' + escapeHtml(res.message) + '</div>'; return; }
+
+  let html = '<div class="card"><h3>⚙️ Cấu hình chấm công</h3>' +
+    '<p class="muted">Giờ ca, phút cho phép trễ/sớm, giờ tính tăng ca, làm tròn công, bật/tắt chấm công.</p>';
+  res.data.forEach(r => {
+    html += '<div class="line" style="display:flex;justify-content:space-between;align-items:center;gap:8px">' +
+      '<span><b>' + escapeHtml(r.key) + '</b> = ' + escapeHtml(r.value) +
+      (r.ghiChu ? '<br><span class="muted">' + escapeHtml(r.ghiChu) + '</span>' : '') + '</span>' +
+      (user.duocQuanLyNhanSu
+        ? '<button class="btn small" style="width:auto;margin:0;padding:6px 14px" onclick="suaCauHinhNS(\'' + r.key + '\',\'' + escapeHtml(r.value) + '\')">Sửa</button>'
+        : '') +
+      '</div>';
+  });
+  html += '</div>';
+  $('cauHinhNSBox').innerHTML = html;
+}
+
+async function suaCauHinhNS(key, hienTai) {
+  const v = prompt('Giá trị mới cho ' + key + ' (hiện tại: ' + hienTai + '):', hienTai);
+  if (v === null) return;
+  const res = await api('updateAttendanceConfig', { userID: user.userID, key: key, value: v.trim() });
+  res.success ? toast(res.message) : alert(res.message);
+  loadCauHinhNS();
 }
 
 /* ================== KHỞI ĐỘNG ================== */
