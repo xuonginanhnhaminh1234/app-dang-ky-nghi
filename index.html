@@ -202,6 +202,19 @@
 <!-- ================= 5. DASHBOARD ================= -->
 <div class="screen" id="scr-dashboard">
   <div id="dashBox"></div>
+
+  <!-- Lịch nghỉ theo tháng -->
+  <div class="card">
+    <h3>📆 Lịch nghỉ theo tháng</h3>
+    <div class="filter-grid">
+      <div><label>Tháng</label><select id="thThang"></select></div>
+      <div><label>Năm</label><select id="thNam"></select></div>
+      <div><label>Phòng ban</label><select id="thPhongBan"></select></div>
+      <div><label>Trạng thái</label><select id="thTrangThai"></select></div>
+    </div>
+    <button class="btn small" onclick="loadMonthDashboard()">Xem lịch tháng</button>
+  </div>
+  <div id="monthBox"></div>
 </div>
 
 <!-- ================= 6. DUYỆT NGHỈ ================= -->
@@ -308,7 +321,7 @@
 /* =====================================================
  * CẤU HÌNH: dán link Web App /exec của Apps Script vào đây
  * ===================================================== */
-const API_URL = 'https://script.google.com/macros/s/AKfycbzPKpKaQD0fIanby4P0MM2HRh5IZDS7TwV-KupYoEe9t31KbE3Ww1or6ksCe_BocGcn/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbyKMGtuoB6orY3IZfX0JLBF1Cwb6475DhDq-rW2eD_6rOgSNyl0f2Zn1G-ZLZt6q1sr/exec';
 
 const STORAGE_KEY = 'nghiapp_user';
 let user = null;      // user đang đăng nhập
@@ -572,6 +585,7 @@ async function openDashboard() {
   if (!res.success) { $('dashBox').innerHTML = '<div class="alert red">' + escapeHtml(res.message) + '</div>'; return; }
 
   const d = res.data;
+  dashData = d; // giữ lại cho các nút copy Zalo
   const tk = d.thongKe;
 
   let html =
@@ -582,6 +596,13 @@ async function openDashboard() {
       '<div class="stat"><div class="num">' + tk.daDuyet + '</div><div class="lbl">Đã duyệt (sắp tới)</div></div>' +
       '<div class="stat"><div class="num">' + tk.tuChoi + '</div><div class="lbl">Từ chối (sắp tới)</div></div>' +
       '<div class="stat' + (tk.yeuCauDacBiet > 0 ? ' warn' : '') + '"><div class="num">' + tk.yeuCauDacBiet + '</div><div class="lbl">Yêu cầu đặc biệt</div></div>' +
+    '</div>';
+
+  // Copy lịch gửi Zalo
+  html += '<div class="btn-row">' +
+    '<button class="btn small" onclick="copyDashSchedule(\'homNay\')">📋 Copy hôm nay</button>' +
+    '<button class="btn small" onclick="copyDashSchedule(\'ngayMai\')">📋 Copy ngày mai</button>' +
+    '<button class="btn small" onclick="copyDashSchedule(\'tuanNay\')">📋 Copy tuần này</button>' +
     '</div>';
 
   // Cảnh báo
@@ -624,6 +645,262 @@ async function openDashboard() {
   }
 
   $('dashBox').innerHTML = html;
+  setupMonthFilters(d.phongBans);
+}
+
+/* ================== DASHBOARD THÁNG ================== */
+let dashData = null;          // dữ liệu dashboard ngày (dùng cho nút copy hôm nay/ngày mai/tuần)
+let monthData = null;         // dữ liệu tháng đang xem (dùng cho nút copy)
+let monthFilterReady = false; // bộ lọc tháng chỉ khởi tạo 1 lần
+
+/* ---- Copy lịch hôm nay / ngày mai / tuần này ---- */
+function copyDashSchedule(loai) {
+  if (!dashData) return;
+  const d = dashData;
+  let out = '', label = '';
+
+  // Ghép 1 nhóm đơn theo phòng ban vào out
+  function themNhom(danhSach) {
+    if (!danhSach.length) { out += '(Không có ai nghỉ)\n'; return; }
+    const m = groupByPB(danhSach);
+    Object.keys(m).sort().forEach(pb => {
+      out += pb + ':\n';
+      m[pb].forEach(lv => {
+        out += '- ' + lv.hoTen + ' - ' + tenCaNgan(lv.caNghi) + ' - ' + lv.trangThai +
+          (lv.vuotSlot ? ' (vượt slot)' : '') + '\n';
+      });
+    });
+  }
+
+  if (loai === 'homNay') {
+    label = 'lịch nghỉ hôm nay';
+    out = '📆 LỊCH NGHỈ HÔM NAY (' + fmtDate(d.homNay.ngay) + ')\n\n';
+    themNhom(d.homNay.danhSach);
+  } else if (loai === 'ngayMai') {
+    label = 'lịch nghỉ ngày mai';
+    out = '📆 LỊCH NGHỈ NGÀY MAI (' + fmtDate(d.ngayMai.ngay) + ')\n\n';
+    themNhom(d.ngayMai.danhSach);
+  } else {
+    label = 'lịch nghỉ tuần này';
+    out = '📆 LỊCH NGHỈ TUẦN NÀY (' + fmtDate(d.tuanNay.tuNgay) + ' - ' + fmtDate(d.tuanNay.denNgay) + ')\n\n';
+    if (!d.tuanNay.danhSach.length) {
+      out += '(Không có ai nghỉ)\n';
+    } else {
+      // Tuần: nhóm theo ngày rồi theo phòng ban
+      const theoNgay = {};
+      d.tuanNay.danhSach.forEach(lv => { (theoNgay[lv.ngayNghi] = theoNgay[lv.ngayNghi] || []).push(lv); });
+      Object.keys(theoNgay).sort().forEach(ngay => {
+        out += fmtDate(ngay) + '\n';
+        themNhom(theoNgay[ngay]);
+        out += '\n';
+      });
+    }
+  }
+
+  out = out.replace(/\s+$/, '') + '\n\nPM lưu ý theo dõi và sắp xếp nhân sự.';
+  copyText(out, label);
+}
+
+function setupMonthFilters(phongBans) {
+  if (monthFilterReady) return;
+  monthFilterReady = true;
+  const now = new Date();
+  const thangs = [1,2,3,4,5,6,7,8,9,10,11,12];
+  fillSelect($('thThang'), thangs, t => t, t => 'Tháng ' + t);
+  $('thThang').value = String(now.getMonth() + 1);
+  const nams = [now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1];
+  fillSelect($('thNam'), nams, n => n, n => 'Năm ' + n);
+  $('thNam').value = String(now.getFullYear());
+  fillSelect($('thPhongBan'), phongBans || [], p => p, p => p, { value: '', label: 'Tất cả phòng ban' });
+  fillSelect($('thTrangThai'),
+    ['Chờ duyệt', 'Đã duyệt', 'Yêu cầu đặc biệt', 'Từ chối', 'Đã hủy'],
+    t => t, t => t, { value: '', label: 'Tất cả trạng thái' });
+}
+
+// Tên ca ngắn gọn cho hiển thị & copy Zalo (không kèm giờ)
+function tenCaNgan(maCa) {
+  if (options) {
+    const c = options.caLam.find(x => x.maCa === maCa);
+    if (c) return c.tenCa;
+  }
+  return maCa;
+}
+
+function groupByPB(list) {
+  const m = {};
+  list.forEach(lv => { (m[lv.phongBan] = m[lv.phongBan] || []).push(lv); });
+  return m;
+}
+
+async function loadMonthDashboard() {
+  $('monthBox').innerHTML = '<div class="muted" style="margin-top:12px">Đang tải...</div>';
+  const res = await api('getMonthlyLeaveDashboard', {
+    userID: user.userID,
+    month: Number($('thThang').value),
+    year: Number($('thNam').value),
+    filters: { phongBan: $('thPhongBan').value, trangThai: $('thTrangThai').value }
+  });
+  if (!res.success) {
+    monthData = null;
+    $('monthBox').innerHTML = '<div class="alert red">' + escapeHtml(res.message) + '</div>';
+    return;
+  }
+  monthData = res.data;
+  renderMonthDashboard();
+}
+
+function renderMonthDashboard() {
+  const d = monthData;
+  const tk = d.thongKeTrangThai;
+  const tenThang = String(d.month).padStart(2, '0') + '/' + d.year;
+
+  // Thống kê tháng
+  let html =
+    '<div class="section-title">📊 Thống kê tháng ' + tenThang + '</div>' +
+    '<div class="stat-grid">' +
+      '<div class="stat"><div class="num">' + tk.tongLuotNghi + '</div><div class="lbl">Tổng lượt nghỉ</div></div>' +
+      '<div class="stat' + (tk.choDuyet > 0 ? ' warn' : '') + '"><div class="num">' + tk.choDuyet + '</div><div class="lbl">Chờ duyệt</div></div>' +
+      '<div class="stat"><div class="num">' + tk.daDuyet + '</div><div class="lbl">Đã duyệt</div></div>' +
+      '<div class="stat' + (tk.yeuCauDacBiet > 0 ? ' warn' : '') + '"><div class="num">' + tk.yeuCauDacBiet + '</div><div class="lbl">Yêu cầu đặc biệt</div></div>' +
+      '<div class="stat"><div class="num">' + tk.tuChoi + '</div><div class="lbl">Từ chối</div></div>' +
+      '<div class="stat"><div class="num">' + tk.daHuy + '</div><div class="lbl">Đã hủy</div></div>' +
+    '</div>';
+
+  // Nút copy Zalo
+  html += '<div class="btn-row">' +
+    '<button class="btn small" onclick="copyMonthSchedule()">📋 Copy lịch nghỉ tháng</button>' +
+    '<button class="btn small orange" onclick="copyMonthStats()">📋 Copy thống kê tháng</button>' +
+    '</div>';
+
+  // Cảnh báo tháng
+  if (d.canhBao.length) {
+    html += '<div class="section-title">⚠ Cảnh báo trong tháng</div>';
+    d.canhBao.forEach(c => { html += '<div class="alert red">⚠ ' + escapeHtml(c) + '</div>'; });
+  }
+
+  // Danh sách theo ngày (chỉ ngày có đơn)
+  html += '<div class="section-title">📆 Lịch nghỉ tháng ' + tenThang + '</div>';
+  if (!d.danhSachTheoNgay.length) {
+    html += '<div class="alert blue">Không có đơn nghỉ nào khớp bộ lọc trong tháng này.</div>';
+  }
+  d.danhSachTheoNgay.forEach(ng => {
+    html += '<div class="card pb-group"><b>' + fmtDate(ng.ngay) + '</b>';
+    const m = groupByPB(ng.danhSach);
+    Object.keys(m).sort().forEach(pb => {
+      html += '<div class="pb-name">' + escapeHtml(pb) + ':</div>';
+      m[pb].forEach(lv => {
+        html += '<div class="pb-item">' + escapeHtml(lv.hoTen) + ' - ' + escapeHtml(tenCaNgan(lv.caNghi)) +
+          ' - ' + badgeHtml(lv.trangThai, lv.vuotSlot) + '</div>';
+      });
+    });
+    html += '</div>';
+  });
+
+  // Thống kê theo phòng ban
+  const pbs = Object.keys(d.thongKePhongBan).sort();
+  if (pbs.length) {
+    html += '<div class="section-title">🏢 Theo phòng ban (lượt nghỉ)</div><div class="card">';
+    pbs.forEach(pb => {
+      html += '<div class="line">' + escapeHtml(pb) + ': <b>' + d.thongKePhongBan[pb] + ' lượt</b></div>';
+    });
+    html += '</div>';
+  }
+
+  // Top nhân viên nghỉ nhiều
+  if (d.thongKeNhanVien.length) {
+    html += '<div class="section-title">👤 Top nhân viên nghỉ nhiều</div>' +
+      '<table class="slot-table"><tr><th>#</th><th>Nhân viên</th><th>Phòng ban</th><th>Lượt</th><th>Số ngày</th></tr>';
+    d.thongKeNhanVien.slice(0, 10).forEach((nv, i) => {
+      html += '<tr><td>' + (i + 1) + '</td><td>' + escapeHtml(nv.hoTen) + '</td><td>' + escapeHtml(nv.phongBan) +
+        '</td><td>' + nv.soLuot + '</td><td>' + nv.soNgayQuyDoi + '</td></tr>';
+    });
+    html += '</table><p class="muted" style="margin-top:6px">Quy đổi: ca sáng/chiều = 0.5 ngày, cả ngày = 1 ngày. Chỉ tính đơn Chờ duyệt / Đã duyệt / Yêu cầu đặc biệt.</p>';
+  }
+
+  $('monthBox').innerHTML = html;
+}
+
+/* ---- Copy Zalo ---- */
+async function copyText(text, label) {
+  try {
+    await navigator.clipboard.writeText(text);
+    toast('Đã copy ' + label + '. Dán vào Zalo được luôn.');
+  } catch (e) {
+    // Fallback cho trình duyệt cũ / không cấp quyền clipboard
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    toast('Đã copy ' + label + '. Dán vào Zalo được luôn.');
+  }
+}
+
+function copyMonthSchedule() {
+  if (!monthData) return;
+  const d = monthData;
+  const tenThang = String(d.month).padStart(2, '0') + '/' + d.year;
+  let out = '📆 LỊCH NGHỈ THÁNG ' + tenThang + '\n\n';
+
+  if (!d.danhSachTheoNgay.length) {
+    out += '(Không có ai nghỉ trong tháng này)\n\n';
+  }
+  d.danhSachTheoNgay.forEach(ng => {
+    out += fmtDate(ng.ngay) + '\n';
+    const m = groupByPB(ng.danhSach);
+    Object.keys(m).sort().forEach(pb => {
+      out += pb + ':\n';
+      m[pb].forEach(lv => {
+        out += '- ' + lv.hoTen + ' - ' + tenCaNgan(lv.caNghi) + ' - ' + lv.trangThai +
+          (lv.vuotSlot ? ' (vượt slot)' : '') + '\n';
+      });
+    });
+    out += '\n';
+  });
+
+  out += 'TỔNG HỢP:\n';
+  Object.keys(d.thongKePhongBan).sort().forEach(pb => {
+    out += pb + ': ' + d.thongKePhongBan[pb] + ' lượt\n';
+  });
+  out += '\nPM lưu ý theo dõi và sắp xếp nhân sự theo lịch trên.';
+
+  copyText(out, 'lịch nghỉ tháng');
+}
+
+function copyMonthStats() {
+  if (!monthData) return;
+  const d = monthData;
+  const tk = d.thongKeTrangThai;
+  const tenThang = String(d.month).padStart(2, '0') + '/' + d.year;
+
+  let out = '📊 THỐNG KÊ NGHỈ THÁNG ' + tenThang + '\n' +
+    'Tổng lượt nghỉ: ' + tk.tongLuotNghi + '\n' +
+    'Chờ duyệt: ' + tk.choDuyet + '\n' +
+    'Đã duyệt: ' + tk.daDuyet + '\n' +
+    'Yêu cầu đặc biệt: ' + tk.yeuCauDacBiet + '\n' +
+    'Từ chối: ' + tk.tuChoi + '\n' +
+    'Đã hủy: ' + tk.daHuy + '\n';
+
+  const pbs = Object.keys(d.thongKePhongBan).sort();
+  if (pbs.length) {
+    out += '\nTHEO PHÒNG BAN:\n';
+    pbs.forEach(pb => { out += pb + ': ' + d.thongKePhongBan[pb] + ' lượt\n'; });
+  }
+
+  if (d.thongKeNhanVien.length) {
+    out += '\nTOP NHÂN VIÊN NGHỈ NHIỀU:\n';
+    d.thongKeNhanVien.slice(0, 10).forEach((nv, i) => {
+      out += (i + 1) + '. ' + nv.hoTen + ' (' + nv.phongBan + '): ' + nv.soLuot + ' lượt - ' + nv.soNgayQuyDoi + ' ngày\n';
+    });
+  }
+
+  if (d.canhBao.length) {
+    out += '\nCẢNH BÁO:\n';
+    d.canhBao.forEach(c => { out += '⚠ ' + c + '\n'; });
+  }
+
+  copyText(out.trim(), 'thống kê nghỉ tháng');
 }
 
 /* ================== DUYỆT NGHỈ ================== */
@@ -662,10 +939,21 @@ async function loadDuyet() {
   const list = res.data;
   if (!list.length) { $('duyetBox').innerHTML = '<div class="alert blue">Không có đơn nào khớp bộ lọc.</div>'; return; }
 
+  // Giữ lại dữ liệu đơn để nút Copy Zalo tra theo leaveID
+  duyetList = {};
+  list.forEach(lv => { duyetList[lv.leaveID] = lv; });
+
   let html = '';
   list.forEach(lv => {
     const choXuLy = (lv.trangThai === 'Chờ duyệt' || lv.trangThai === 'Yêu cầu đặc biệt');
     const daDuyet = (lv.trangThai === 'Đã duyệt');
+    const nhanCopy = {
+      'Chờ duyệt': '📋 Copy tin đăng ký',
+      'Yêu cầu đặc biệt': '📋 Copy tin đăng ký',
+      'Đã duyệt': '📋 Copy tin đã duyệt',
+      'Từ chối': '📋 Copy tin từ chối',
+      'Đã hủy': '📋 Copy tin hủy'
+    }[lv.trangThai] || '📋 Copy Zalo';
 
     let tinhCongSelect = '<select id="tc-' + lv.leaveID + '">';
     options.tinhCong.forEach(t => {
@@ -692,9 +980,60 @@ async function loadDuyet() {
             '<button class="btn gray small" onclick="huyDonQL(\'' + lv.leaveID + '\')">Hủy</button>' +
           '</div>'
         : (daDuyet ? '<button class="btn gray small" onclick="huyDonQL(\'' + lv.leaveID + '\')">Hủy đơn đã duyệt</button>' : '')) +
+      '<button class="btn small" style="background:#455a64" onclick="copyLeaveMsg(\'' + lv.leaveID + '\')">' + nhanCopy + '</button>' +
       '</div>';
   });
   $('duyetBox').innerHTML = html;
+}
+
+/* ---- Copy tin Zalo cho từng đơn ---- */
+let duyetList = {}; // map leaveID -> đơn (nạp lại mỗi lần loadDuyet)
+
+function copyLeaveMsg(leaveID) {
+  const lv = duyetList[leaveID];
+  if (!lv) { toast('Không tìm thấy dữ liệu đơn, bấm Lọc / Tải lại rồi thử lại.'); return; }
+  const ngay = fmtDate(lv.ngayNghi);
+  const ca = tenCaNgan(lv.caNghi);
+  let out = '';
+
+  if (lv.trangThai === 'Chờ duyệt' || lv.trangThai === 'Yêu cầu đặc biệt') {
+    out = '📌 CÓ ĐƠN ĐĂNG KÝ NGHỈ MỚI\n\n' +
+      (lv.trangThai === 'Yêu cầu đặc biệt' ? 'Loại đơn: YÊU CẦU ĐẶC BIỆT (hết slot)\n' : '') +
+      'Nhân viên: ' + lv.hoTen + '\n' +
+      'Phòng ban: ' + lv.phongBan + '\n' +
+      'Ngày nghỉ: ' + ngay + '\n' +
+      'Ca nghỉ: ' + ca + '\n' +
+      'Loại nghỉ: ' + lv.loaiNghi + '\n' +
+      'Lý do: ' + lv.lyDo + '\n\n' +
+      'PM vui lòng kiểm tra và duyệt trên app.';
+    copyText(out, 'tin đăng ký');
+  } else if (lv.trangThai === 'Đã duyệt') {
+    out = '✅ ĐƠN NGHỈ ĐÃ ĐƯỢC DUYỆT\n\n' +
+      'Nhân viên: ' + lv.hoTen + '\n' +
+      'Ngày nghỉ: ' + ngay + '\n' +
+      'Ca nghỉ: ' + ca + '\n' +
+      'Loại nghỉ: ' + lv.loaiNghi + '\n' +
+      'Tính công: ' + lv.tinhCong + '\n' +
+      (lv.vuotSlot ? 'Lưu ý: đơn được duyệt VƯỢT SLOT.\n' : '') +
+      '\nBạn lưu ý sắp xếp công việc/bàn giao trước khi nghỉ nhé.';
+    copyText(out, 'tin đã duyệt');
+  } else if (lv.trangThai === 'Từ chối') {
+    out = '❌ ĐƠN NGHỈ CHƯA ĐƯỢC DUYỆT\n\n' +
+      'Nhân viên: ' + lv.hoTen + '\n' +
+      'Ngày nghỉ: ' + ngay + '\n' +
+      'Ca nghỉ: ' + ca + '\n' +
+      'Lý do từ chối: ' + lv.lyDoTuChoi + '\n\n' +
+      'Bạn trao đổi thêm với PM nếu cần nhé.';
+    copyText(out, 'tin từ chối');
+  } else if (lv.trangThai === 'Đã hủy') {
+    out = '⚠️ ĐƠN NGHỈ ĐÃ ĐƯỢC HỦY\n\n' +
+      'Nhân viên: ' + lv.hoTen + '\n' +
+      'Ngày nghỉ: ' + ngay + '\n' +
+      'Ca nghỉ: ' + ca + '\n' +
+      'Trạng thái: Đã hủy\n\n' +
+      'PM và nhân viên lưu ý cập nhật lại lịch làm việc.';
+    copyText(out, 'tin hủy');
+  }
 }
 
 function layTinhCong(leaveID) {
