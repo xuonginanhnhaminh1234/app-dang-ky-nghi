@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Đăng ký nghỉ - Xưởng in ảnh</title>
+<style>
+  /* ============ RESET & NỀN ============ */
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; }
+  :root {
+    --xanh: #1976d2;
+    --xanh-dam: #0d47a1;
+    --xanh-la: #2e7d32;
+    --do: #c62828;
+    --cam: #ef6c00;
+    --tim: #6a1b9a;
+    --xam: #757575;
+    --nen: #f2f4f7;
+    --the: #ffffff;
+  }
+  body { background: var(--nen); color: #212121; min-height: 100vh; }
+  .screen { display: none; max-width: 560px; margin: 0 auto; padding: 12px 12px 40px; }
+  .screen.active { display: block; }
+
+  /* ============ HEADER ============ */
+  .topbar {
+    position: sticky; top: 0; z-index: 50;
+    background: var(--xanh); color: #fff;
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px; max-width: 560px; margin: 0 auto;
+  }
+  .topbar .back-btn { background: rgba(255,255,255,.2); border: none; color: #fff; font-size: 18px; padding: 8px 14px; border-radius: 8px; }
+  .topbar .title { flex: 1; font-size: 17px; font-weight: 700; }
+  .topbar .logout-btn { background: rgba(255,255,255,.2); border: none; color: #fff; font-size: 13px; padding: 8px 12px; border-radius: 8px; }
+
+  /* ============ NÚT & FORM ============ */
+  .btn {
+    display: block; width: 100%; border: none; border-radius: 12px;
+    padding: 16px; font-size: 17px; font-weight: 700; color: #fff;
+    background: var(--xanh); margin-top: 12px; cursor: pointer;
+  }
+  .btn:active { opacity: .8; }
+  .btn.green { background: var(--xanh-la); }
+  .btn.red { background: var(--do); }
+  .btn.orange { background: var(--cam); }
+  .btn.purple { background: var(--tim); }
+  .btn.gray { background: var(--xam); }
+  .btn.small { padding: 10px; font-size: 14px; border-radius: 9px; margin-top: 8px; }
+  .btn-row { display: flex; gap: 8px; }
+  .btn-row .btn { flex: 1; }
+
+  label { display: block; font-size: 14px; font-weight: 600; margin: 14px 0 5px; color: #37474f; }
+  input, select, textarea {
+    width: 100%; padding: 14px; font-size: 16px;
+    border: 1.5px solid #cfd8dc; border-radius: 10px; background: #fff;
+  }
+  textarea { min-height: 80px; resize: vertical; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--xanh); }
+  .check-row { display: flex; align-items: center; gap: 10px; margin-top: 14px; font-size: 15px; }
+  .check-row input { width: 22px; height: 22px; }
+
+  /* ============ THẺ / CARD ============ */
+  .card { background: var(--the); border-radius: 14px; padding: 14px; margin-top: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+  .card h3 { font-size: 15px; margin-bottom: 8px; color: var(--xanh-dam); }
+  .card .line { font-size: 14px; margin: 3px 0; color: #37474f; }
+  .card .line b { color: #212121; }
+
+  .menu-btn {
+    display: flex; align-items: center; gap: 12px; width: 100%;
+    background: var(--the); border: none; border-radius: 14px;
+    padding: 18px 16px; margin-top: 12px; font-size: 17px; font-weight: 600;
+    color: #212121; text-align: left; box-shadow: 0 1px 4px rgba(0,0,0,.08); cursor: pointer;
+  }
+  .menu-btn .icon { font-size: 24px; }
+  .menu-btn:active { background: #e3f2fd; }
+
+  /* ============ BADGE TRẠNG THÁI ============ */
+  .badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; color: #fff; }
+  .badge.cho-duyet { background: var(--cam); }
+  .badge.da-duyet { background: var(--xanh-la); }
+  .badge.tu-choi { background: var(--do); }
+  .badge.da-huy { background: var(--xam); }
+  .badge.dac-biet { background: var(--tim); }
+  .badge.vuot { background: #b71c1c; }
+
+  /* ============ CẢNH BÁO / THÔNG BÁO ============ */
+  .alert { border-radius: 10px; padding: 12px; font-size: 14px; margin-top: 12px; }
+  .alert.red { background: #ffebee; color: #b71c1c; border: 1px solid #ef9a9a; }
+  .alert.orange { background: #fff3e0; color: #e65100; border: 1px solid #ffcc80; }
+  .alert.green { background: #e8f5e9; color: #1b5e20; border: 1px solid #a5d6a7; }
+  .alert.blue { background: #e3f2fd; color: #0d47a1; border: 1px solid #90caf9; }
+
+  /* ============ DASHBOARD ============ */
+  .stat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 12px; }
+  .stat { background: var(--the); border-radius: 12px; padding: 14px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+  .stat .num { font-size: 26px; font-weight: 800; color: var(--xanh); }
+  .stat .lbl { font-size: 12px; color: var(--xam); margin-top: 2px; }
+  .stat.warn .num { color: var(--do); }
+  .section-title { font-size: 16px; font-weight: 800; margin-top: 20px; color: var(--xanh-dam); }
+  .pb-group { margin-top: 8px; }
+  .pb-name { font-weight: 700; font-size: 14px; margin-top: 10px; color: #37474f; }
+  .pb-item { font-size: 14px; padding: 6px 0 6px 12px; border-left: 3px solid #cfd8dc; margin-top: 4px; }
+  .pb-empty { font-size: 13px; color: var(--xam); padding-left: 12px; font-style: italic; }
+
+  table.slot-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; background: #fff; border-radius: 10px; overflow: hidden; }
+  table.slot-table th, table.slot-table td { padding: 8px 6px; text-align: center; border-bottom: 1px solid #eceff1; }
+  table.slot-table th { background: #e3f2fd; color: var(--xanh-dam); }
+  table.slot-table td.vuot { color: var(--do); font-weight: 800; }
+
+  /* ============ LOADING & TOAST ============ */
+  #loading {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,.35);
+    z-index: 100; align-items: center; justify-content: center;
+  }
+  #loading .spin {
+    width: 46px; height: 46px; border: 5px solid #fff; border-top-color: transparent;
+    border-radius: 50%; animation: quay 0.8s linear infinite;
+  }
+  @keyframes quay { to { transform: rotate(360deg); } }
+  #toast {
+    display: none; position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: #263238; color: #fff; padding: 12px 20px; border-radius: 24px;
+    font-size: 14px; z-index: 110; max-width: 90%; text-align: center;
+  }
+
+  .muted { color: var(--xam); font-size: 13px; }
+  .hidden { display: none !important; }
+  .pin-input { text-align: center; font-size: 28px; letter-spacing: 12px; }
+  .logo { text-align: center; margin: 40px 0 10px; }
+  .logo .ic { font-size: 52px; }
+  .logo h1 { font-size: 22px; color: var(--xanh-dam); margin-top: 8px; }
+  .logo p { color: var(--xam); font-size: 14px; margin-top: 4px; }
+  .filter-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<!-- ================= THANH TRÊN ================= -->
+<div class="topbar hidden" id="topbar">
+  <button class="back-btn" id="btnBack" onclick="goHome()">←</button>
+  <div class="title" id="topTitle">Đăng ký nghỉ</div>
+  <button class="logout-btn" onclick="logout()">Thoát</button>
+</div>
+
+<!-- ================= 1. LOGIN ================= -->
+<div class="screen active" id="scr-login">
+  <div class="logo">
+    <div class="ic">🏭</div>
+    <h1>Đăng ký nghỉ</h1>
+    <p>Xưởng in ảnh - Nhập mã PIN để vào</p>
+  </div>
+  <label>Mã PIN</label>
+  <input type="password" id="inpPin" class="pin-input" inputmode="numeric" maxlength="8" placeholder="••••">
+  <button class="btn" onclick="doLogin()">Đăng nhập</button>
+  <div id="loginErr" class="alert red hidden"></div>
+</div>
+
+<!-- ================= 2. HOME ================= -->
+<div class="screen" id="scr-home">
+  <div class="card">
+    <h3 id="homeHello">Xin chào</h3>
+    <div class="line" id="homeInfo"></div>
+  </div>
+  <button class="menu-btn" onclick="openDangKy()"><span class="icon">📝</span> Đăng ký nghỉ</button>
+  <button class="menu-btn" onclick="openMyLeaves()"><span class="icon">📅</span> Lịch nghỉ của tôi</button>
+  <button class="menu-btn hidden" id="mnDashboard" onclick="openDashboard()"><span class="icon">📊</span> Dashboard quản lý</button>
+  <button class="menu-btn hidden" id="mnDuyet" onclick="openDuyet()"><span class="icon">✅</span> Duyệt nghỉ</button>
+  <button class="menu-btn hidden" id="mnTaoThay" onclick="openTaoThay()"><span class="icon">👥</span> Tạo đơn thay nhân viên</button>
+  <button class="menu-btn hidden" id="mnSlot" onclick="openSlot()"><span class="icon">🎚️</span> Quản lý slot</button>
+  <button class="menu-btn hidden" id="mnKhoa" onclick="openKhoa()"><span class="icon">🔒</span> Khóa ngày</button>
+</div>
+
+<!-- ================= 3. ĐĂNG KÝ NGHỈ ================= -->
+<div class="screen" id="scr-dangky">
+  <div class="card">
+    <h3>Đăng ký nghỉ</h3>
+    <label>Ngày nghỉ</label>
+    <input type="date" id="dkNgay">
+    <div class="muted" id="dkHanBaoTruoc" style="margin-top:4px"></div>
+    <label>Ca nghỉ</label>
+    <select id="dkCa"></select>
+    <label>Loại nghỉ</label>
+    <select id="dkLoai"></select>
+    <label>Tính công (gợi ý theo loại nghỉ)</label>
+    <select id="dkTinhCong"></select>
+    <label>Lý do nghỉ</label>
+    <textarea id="dkLyDo" placeholder="Nhập lý do..."></textarea>
+    <button class="btn green" onclick="submitDangKy(false)">Gửi đăng ký</button>
+  </div>
+  <div class="card hidden" id="dkHetSlotBox">
+    <div class="alert orange" id="dkHetSlotMsg"></div>
+    <button class="btn purple" onclick="submitDangKy(true)">Gửi yêu cầu đặc biệt</button>
+  </div>
+  <div id="dkKetQua"></div>
+</div>
+
+<!-- ================= 4. LỊCH NGHỈ CỦA TÔI ================= -->
+<div class="screen" id="scr-mylist">
+  <div id="myListBox"></div>
+</div>
+
+<!-- ================= 5. DASHBOARD ================= -->
+<div class="screen" id="scr-dashboard">
+  <div id="dashBox"></div>
+</div>
+
+<!-- ================= 6. DUYỆT NGHỈ ================= -->
+<div class="screen" id="scr-duyet">
+  <div class="card">
+    <h3>Bộ lọc</h3>
+    <div class="filter-grid">
+      <div><label>Từ ngày</label><input type="date" id="flTuNgay"></div>
+      <div><label>Đến ngày</label><input type="date" id="flDenNgay"></div>
+      <div><label>Phòng ban</label><select id="flPhongBan"></select></div>
+      <div><label>Trạng thái</label><select id="flTrangThai"></select></div>
+    </div>
+    <label>Nhân viên</label>
+    <select id="flNhanVien"></select>
+    <button class="btn small" onclick="loadDuyet()">Lọc / Tải lại</button>
+  </div>
+  <div id="duyetBox"></div>
+</div>
+
+<!-- ================= 7. TẠO ĐƠN THAY NHÂN VIÊN ================= -->
+<div class="screen" id="scr-taothay">
+  <div class="card">
+    <h3>Tạo đơn nghỉ thay nhân viên</h3>
+    <label>Nhân viên</label>
+    <select id="ttNhanVien"></select>
+    <label>Ngày nghỉ</label>
+    <input type="date" id="ttNgay">
+    <label>Ca nghỉ</label>
+    <select id="ttCa"></select>
+    <label>Loại nghỉ</label>
+    <select id="ttLoai"></select>
+    <label>Tính công</label>
+    <select id="ttTinhCong"></select>
+    <label>Lý do</label>
+    <textarea id="ttLyDo" placeholder="Nhập lý do..."></textarea>
+    <label>Ghi chú</label>
+    <input type="text" id="ttGhiChu" placeholder="Ghi chú thêm (không bắt buộc)">
+    <label>Trạng thái ban đầu</label>
+    <select id="ttTrangThai">
+      <option value="Chờ duyệt">Chờ duyệt</option>
+      <option value="Đã duyệt">Đã duyệt (duyệt luôn)</option>
+    </select>
+    <div class="check-row">
+      <input type="checkbox" id="ttVuotSlot">
+      <span>Cho phép vượt slot nếu ca đã đầy</span>
+    </div>
+    <button class="btn green" onclick="submitTaoThay()">Tạo đơn</button>
+  </div>
+  <div id="ttKetQua"></div>
+</div>
+
+<!-- ================= 8. QUẢN LÝ SLOT ================= -->
+<div class="screen" id="scr-slot">
+  <div class="card">
+    <h3>Slot riêng theo ngày</h3>
+    <p class="muted">Nếu ngày không có slot riêng thì app dùng slot mặc định.</p>
+    <label>Ngày</label>
+    <input type="date" id="slNgay">
+    <label>Phòng ban</label>
+    <select id="slPhongBan"></select>
+    <label>Ca</label>
+    <select id="slCa">
+      <option value="SANG">Ca sáng (SANG)</option>
+      <option value="CHIEU">Ca chiều (CHIEU)</option>
+    </select>
+    <label>Số người được nghỉ tối đa</label>
+    <input type="number" id="slSoLuong" min="0" inputmode="numeric" placeholder="VD: 2">
+    <label>Ghi chú</label>
+    <input type="text" id="slGhiChu" placeholder="Không bắt buộc">
+    <button class="btn green" onclick="saveSlotConfig()">Lưu slot theo ngày</button>
+  </div>
+  <div id="slotListBox"></div>
+  <div id="slotDefaultBox"></div>
+  <div id="minStaffBox"></div>
+  <div id="generalCfgBox"></div>
+</div>
+
+<!-- ================= 9. KHÓA NGÀY ================= -->
+<div class="screen" id="scr-khoa">
+  <div class="card">
+    <h3>Khóa ngày đăng ký nghỉ</h3>
+    <label>Ngày khóa</label>
+    <input type="date" id="khNgay">
+    <label>Phạm vi</label>
+    <select id="khPhongBan"></select>
+    <label>Ca</label>
+    <select id="khCa">
+      <option value="">Cả ngày</option>
+      <option value="SANG">Ca sáng (SANG)</option>
+      <option value="CHIEU">Ca chiều (CHIEU)</option>
+    </select>
+    <label>Lý do khóa</label>
+    <input type="text" id="khLyDo" placeholder="VD: Kiểm kê, cao điểm...">
+    <button class="btn red" onclick="doLockDate()">🔒 Khóa</button>
+  </div>
+  <div id="khoaListBox"></div>
+</div>
+
+<!-- ================= LOADING & TOAST ================= -->
+<div id="loading"><div class="spin"></div></div>
+<div id="toast"></div>
+
+<script>
+/* =====================================================
+ * CẤU HÌNH: dán link Web App /exec của Apps Script vào đây
+ * ===================================================== */
+const API_URL = 'https://script.google.com/macros/s/AKfycbzPKpKaQD0fIanby4P0MM2HRh5IZDS7TwV-KupYoEe9t31KbE3Ww1or6ksCe_BocGcn/exec';
+
+const STORAGE_KEY = 'nghiapp_user';
+let user = null;      // user đang đăng nhập
+let options = null;   // getLeaveOptions cache
+
+/* ================== TIỆN ÍCH ================== */
+function $(id) { return document.getElementById(id); }
+
+function showLoading(on) { $('loading').style.display = on ? 'flex' : 'none'; }
+
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => { t.style.display = 'none'; }, 3500);
+}
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// yyyy-MM-dd -> dd/MM/yyyy
+function fmtDate(s) {
+  if (!s || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return s || '';
+  const p = s.split('-');
+  return p[2] + '/' + p[1] + '/' + p[0];
+}
+
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+function addDays(dateStr, n) {
+  const p = dateStr.split('-');
+  const d = new Date(+p[0], +p[1] - 1, +p[2]);
+  d.setDate(d.getDate() + n);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+function badgeHtml(trangThai, vuotSlot) {
+  const map = {
+    'Chờ duyệt': 'cho-duyet',
+    'Đã duyệt': 'da-duyet',
+    'Từ chối': 'tu-choi',
+    'Đã hủy': 'da-huy',
+    'Yêu cầu đặc biệt': 'dac-biet'
+  };
+  let html = '<span class="badge ' + (map[trangThai] || 'da-huy') + '">' + escapeHtml(trangThai) + '</span>';
+  if (vuotSlot) html += ' <span class="badge vuot">VƯỢT SLOT</span>';
+  return html;
+}
+
+function tenCa(maCa) {
+  if (!options) return maCa;
+  const c = options.caLam.find(x => x.maCa === maCa);
+  return c ? (c.tenCa + ' (' + c.gioBatDau + '-' + c.gioKetThuc + ')') : maCa;
+}
+
+/* ================== GỌI API ================== */
+async function api(action, data) {
+  showLoading(true);
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // tránh CORS preflight với Apps Script
+      body: JSON.stringify({ action: action, data: data || {} })
+    });
+    return await res.json();
+  } catch (err) {
+    return { success: false, message: 'Không kết nối được máy chủ. Kiểm tra mạng hoặc API_URL.' };
+  } finally {
+    showLoading(false);
+  }
+}
+
+/* ================== ĐIỀU HƯỚNG ================== */
+function showScreen(id, title) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  $(id).classList.add('active');
+  const isLogin = (id === 'scr-login');
+  $('topbar').classList.toggle('hidden', isLogin);
+  $('btnBack').style.visibility = (id === 'scr-home') ? 'hidden' : 'visible';
+  $('topTitle').textContent = title || 'Đăng ký nghỉ';
+  window.scrollTo(0, 0);
+}
+
+function goHome() { renderHome(); }
+
+function logout() {
+  localStorage.removeItem(STORAGE_KEY);
+  user = null;
+  options = null;
+  $('inpPin').value = '';
+  showScreen('scr-login');
+}
+
+/* ================== LOGIN ================== */
+async function doLogin() {
+  const pin = $('inpPin').value.trim();
+  $('loginErr').classList.add('hidden');
+  if (!pin) { toast('Vui lòng nhập mã PIN.'); return; }
+
+  const res = await api('login', { pin: pin });
+  if (!res.success) {
+    $('loginErr').textContent = res.message;
+    $('loginErr').classList.remove('hidden');
+    return;
+  }
+  user = res.data;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+  await loadOptions();
+  renderHome();
+}
+
+$('inpPin').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+async function loadOptions() {
+  const res = await api('getLeaveOptions', { userID: user.userID });
+  if (res.success) options = res.data;
+  else toast(res.message);
+}
+
+/* ================== HOME ================== */
+function renderHome() {
+  $('homeHello').textContent = 'Xin chào, ' + user.hoTen + ' 👋';
+  $('homeInfo').innerHTML = 'Phòng ban: <b>' + escapeHtml(user.phongBan) + '</b> · Vai trò: <b>' + escapeHtml(user.vaiTro) + '</b>';
+  $('mnDashboard').classList.toggle('hidden', !user.duocXemDashboard);
+  $('mnDuyet').classList.toggle('hidden', !user.duocDuyetNghi);
+  $('mnTaoThay').classList.toggle('hidden', !user.duocDuyetNghi);
+  $('mnSlot').classList.toggle('hidden', !user.duocSuaCauHinh);
+  $('mnKhoa').classList.toggle('hidden', !user.duocSuaCauHinh);
+  showScreen('scr-home', 'Trang chính');
+}
+
+/* ================== ĐĂNG KÝ NGHỈ ================== */
+function fillSelect(sel, items, valueFn, labelFn, extraFirst) {
+  sel.innerHTML = '';
+  if (extraFirst) {
+    const o = document.createElement('option');
+    o.value = extraFirst.value; o.textContent = extraFirst.label;
+    sel.appendChild(o);
+  }
+  items.forEach(it => {
+    const o = document.createElement('option');
+    o.value = valueFn(it); o.textContent = labelFn(it);
+    sel.appendChild(o);
+  });
+}
+
+function fillLoaiNghiSelects(loaiSel, tinhCongSel) {
+  fillSelect(loaiSel, options.loaiNghi, l => l.ten, l => l.ten);
+  fillSelect(tinhCongSel, options.tinhCong, t => t, t => t);
+  const goiY = () => {
+    const l = options.loaiNghi.find(x => x.ten === loaiSel.value);
+    if (l) tinhCongSel.value = l.tinhCongGoiY;
+  };
+  loaiSel.onchange = goiY;
+  goiY();
+}
+
+async function openDangKy() {
+  if (!options) await loadOptions();
+  if (!options) return;
+  fillSelect($('dkCa'), options.caLam, c => c.maCa, c => c.tenCa + ' (' + c.gioBatDau + ' - ' + c.gioKetThuc + ')');
+  fillLoaiNghiSelects($('dkLoai'), $('dkTinhCong'));
+  const minNgay = addDays(options.homNay || todayStr(), options.soNgayBaoTruoc);
+  $('dkNgay').min = minNgay;
+  if (!$('dkNgay').value || $('dkNgay').value < minNgay) $('dkNgay').value = minNgay;
+  $('dkHanBaoTruoc').textContent = 'Phải đăng ký trước ít nhất ' + options.soNgayBaoTruoc + ' ngày.';
+  $('dkHetSlotBox').classList.add('hidden');
+  $('dkKetQua').innerHTML = '';
+  showScreen('scr-dangky', 'Đăng ký nghỉ');
+}
+
+async function submitDangKy(forceSpecial) {
+  const data = {
+    userID: user.userID,
+    ngayNghi: $('dkNgay').value,
+    caNghi: $('dkCa').value,
+    loaiNghi: $('dkLoai').value,
+    lyDo: $('dkLyDo').value.trim(),
+    tinhCong: $('dkTinhCong').value,
+    forceSpecialRequest: forceSpecial === true
+  };
+  if (!data.ngayNghi) { toast('Vui lòng chọn ngày nghỉ.'); return; }
+  if (!data.lyDo) { toast('Vui lòng nhập lý do nghỉ.'); return; }
+
+  const res = await api('submitLeave', data);
+
+  if (res.success) {
+    $('dkHetSlotBox').classList.add('hidden');
+    let html = '<div class="alert green">' + escapeHtml(res.message) + '</div>';
+    if (res.warning) html += '<div class="alert orange">⚠ ' + escapeHtml(res.warning) + '</div>';
+    $('dkKetQua').innerHTML = html;
+    $('dkLyDo').value = '';
+    toast(res.message);
+    return;
+  }
+
+  // Hết slot -> hiện nút gửi yêu cầu đặc biệt
+  if (res.data && res.data.hetSlot) {
+    $('dkKetQua').innerHTML = '';
+    $('dkHetSlotMsg').textContent = res.message + (res.data.canSpecialRequest
+      ? ' Bạn có thể gửi yêu cầu đặc biệt để quản lý xem xét.'
+      : ' Hiện không cho phép gửi yêu cầu đặc biệt.');
+    $('dkHetSlotBox').classList.remove('hidden');
+    $('dkHetSlotBox').querySelector('.btn').classList.toggle('hidden', !res.data.canSpecialRequest);
+    return;
+  }
+
+  $('dkHetSlotBox').classList.add('hidden');
+  $('dkKetQua').innerHTML = '<div class="alert red">' + escapeHtml(res.message) + '</div>';
+}
+
+/* ================== LỊCH NGHỈ CỦA TÔI ================== */
+async function openMyLeaves() {
+  showScreen('scr-mylist', 'Lịch nghỉ của tôi');
+  $('myListBox').innerHTML = '<div class="muted" style="margin-top:16px">Đang tải...</div>';
+  const res = await api('getMyLeaves', { userID: user.userID });
+  if (!res.success) { $('myListBox').innerHTML = '<div class="alert red">' + escapeHtml(res.message) + '</div>'; return; }
+
+  const list = res.data;
+  if (!list.length) { $('myListBox').innerHTML = '<div class="alert blue">Bạn chưa có đơn nghỉ nào.</div>'; return; }
+
+  let html = '';
+  list.forEach(lv => {
+    const huyDuoc = (lv.trangThai === 'Chờ duyệt' || lv.trangThai === 'Yêu cầu đặc biệt');
+    html += '<div class="card">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center">' +
+        '<b>' + fmtDate(lv.ngayNghi) + '</b>' + badgeHtml(lv.trangThai, lv.vuotSlot) +
+      '</div>' +
+      '<div class="line">Ca: <b>' + escapeHtml(tenCa(lv.caNghi)) + '</b></div>' +
+      '<div class="line">Loại: <b>' + escapeHtml(lv.loaiNghi) + '</b> · Tính công: <b>' + escapeHtml(lv.tinhCong) + '</b></div>' +
+      '<div class="line">Lý do: ' + escapeHtml(lv.lyDo) + '</div>' +
+      '<div class="line muted">Đăng ký lúc: ' + escapeHtml(lv.thoiGianDangKy) + '</div>' +
+      (lv.nguoiDuyet ? '<div class="line muted">Người duyệt: ' + escapeHtml(lv.nguoiDuyet) + ' lúc ' + escapeHtml(lv.thoiGianDuyet) + '</div>' : '') +
+      (lv.lyDoTuChoi ? '<div class="alert red" style="margin-top:8px">Lý do từ chối: ' + escapeHtml(lv.lyDoTuChoi) + '</div>' : '') +
+      (lv.taoThayNhanVien ? '<div class="line muted">Đơn do quản lý tạo thay.</div>' : '') +
+      (huyDuoc ? '<button class="btn red small" onclick="huyDonCuaToi(\'' + lv.leaveID + '\')">Hủy đơn này</button>' : '') +
+      '</div>';
+  });
+  $('myListBox').innerHTML = html;
+}
+
+async function huyDonCuaToi(leaveID) {
+  if (!confirm('Bạn chắc chắn muốn hủy đơn nghỉ này?')) return;
+  const res = await api('cancelMyLeave', { userID: user.userID, leaveID: leaveID });
+  toast(res.message);
+  if (res.success) openMyLeaves();
+}
+
+/* ================== DASHBOARD ================== */
+async function openDashboard() {
+  showScreen('scr-dashboard', 'Dashboard quản lý');
+  $('dashBox').innerHTML = '<div class="muted" style="margin-top:16px">Đang tải...</div>';
+  const res = await api('getLeaveDashboard', { userID: user.userID });
+  if (!res.success) { $('dashBox').innerHTML = '<div class="alert red">' + escapeHtml(res.message) + '</div>'; return; }
+
+  const d = res.data;
+  const tk = d.thongKe;
+
+  let html =
+    '<div class="stat-grid">' +
+      '<div class="stat"><div class="num">' + tk.tongHomNay + '</div><div class="lbl">Nghỉ hôm nay</div></div>' +
+      '<div class="stat"><div class="num">' + tk.tongNgayMai + '</div><div class="lbl">Nghỉ ngày mai</div></div>' +
+      '<div class="stat' + (tk.choDuyet > 0 ? ' warn' : '') + '"><div class="num">' + tk.choDuyet + '</div><div class="lbl">Chờ duyệt</div></div>' +
+      '<div class="stat"><div class="num">' + tk.daDuyet + '</div><div class="lbl">Đã duyệt (sắp tới)</div></div>' +
+      '<div class="stat"><div class="num">' + tk.tuChoi + '</div><div class="lbl">Từ chối (sắp tới)</div></div>' +
+      '<div class="stat' + (tk.yeuCauDacBiet > 0 ? ' warn' : '') + '"><div class="num">' + tk.yeuCauDacBiet + '</div><div class="lbl">Yêu cầu đặc biệt</div></div>' +
+    '</div>';
+
+  // Cảnh báo
+  if (d.canhBao.length) {
+    html += '<div class="section-title">⚠ Cảnh báo</div>';
+    d.canhBao.forEach(c => { html += '<div class="alert red">' + escapeHtml(c) + '</div>'; });
+  }
+
+  // Nhóm theo phòng ban
+  function nhomTheoPB(danhSach) {
+    let h = '';
+    d.phongBans.forEach(pb => {
+      h += '<div class="pb-name">' + escapeHtml(pb) + ':</div>';
+      const items = danhSach.filter(x => x.phongBan === pb);
+      if (!items.length) { h += '<div class="pb-empty">Không có ai nghỉ</div>'; return; }
+      items.forEach(lv => {
+        h += '<div class="pb-item">' + escapeHtml(lv.hoTen) + ' - ' + escapeHtml(tenCa(lv.caNghi)) +
+          ' - ' + badgeHtml(lv.trangThai, lv.vuotSlot) +
+          (danhSach === d.tuanNay.danhSach ? ' <span class="muted">(' + fmtDate(lv.ngayNghi) + ')</span>' : '') +
+          '</div>';
+      });
+    });
+    return h;
+  }
+
+  html += '<div class="section-title">📅 Hôm nay ai nghỉ? (' + fmtDate(d.homNay.ngay) + ')</div><div class="card pb-group">' + nhomTheoPB(d.homNay.danhSach) + '</div>';
+  html += '<div class="section-title">📅 Ngày mai ai nghỉ? (' + fmtDate(d.ngayMai.ngay) + ')</div><div class="card pb-group">' + nhomTheoPB(d.ngayMai.danhSach) + '</div>';
+  html += '<div class="section-title">📅 Tuần này ai nghỉ? (' + fmtDate(d.tuanNay.tuNgay) + ' - ' + fmtDate(d.tuanNay.denNgay) + ')</div><div class="card pb-group">' + nhomTheoPB(d.tuanNay.danhSach) + '</div>';
+
+  // Bảng slot
+  if (d.slotInfo.length) {
+    html += '<div class="section-title">🎚️ Slot hôm nay & ngày mai</div>' +
+      '<table class="slot-table"><tr><th>Ngày</th><th>Phòng ban</th><th>Ca</th><th>Đã dùng / Tối đa</th><th>Còn</th></tr>';
+    d.slotInfo.forEach(s => {
+      html += '<tr><td>' + fmtDate(s.ngay) + '</td><td>' + escapeHtml(s.phongBan) + '</td><td>' + s.ca + '</td>' +
+        '<td class="' + (s.vuot ? 'vuot' : '') + '">' + s.daDung + '/' + s.gioiHan + (s.vuot ? ' ⚠' : '') + '</td>' +
+        '<td>' + s.conLai + '</td></tr>';
+    });
+    html += '</table>';
+  }
+
+  $('dashBox').innerHTML = html;
+}
+
+/* ================== DUYỆT NGHỈ ================== */
+async function openDuyet() {
+  if (!options) await loadOptions();
+  showScreen('scr-duyet', 'Duyệt nghỉ');
+
+  // Chuẩn bị bộ lọc (chỉ set lần đầu)
+  if (!$('flTuNgay').value) {
+    $('flTuNgay').value = todayStr();
+    $('flDenNgay').value = addDays(todayStr(), 30);
+  }
+  fillSelect($('flPhongBan'), options.phongBans, p => p, p => p, { value: '', label: 'Tất cả phòng ban' });
+  fillSelect($('flTrangThai'),
+    ['Chờ duyệt', 'Yêu cầu đặc biệt', 'Đã duyệt', 'Từ chối', 'Đã hủy'],
+    t => t, t => t, { value: '', label: 'Tất cả trạng thái' });
+  fillSelect($('flNhanVien'), options.nhanViens || [], n => n.userID, n => n.hoTen + ' (' + n.phongBan + ')', { value: '', label: 'Tất cả nhân viên' });
+
+  loadDuyet();
+}
+
+async function loadDuyet() {
+  $('duyetBox').innerHTML = '<div class="muted" style="margin-top:16px">Đang tải...</div>';
+  const res = await api('getAllLeaves', {
+    userID: user.userID,
+    filters: {
+      tuNgay: $('flTuNgay').value,
+      denNgay: $('flDenNgay').value,
+      phongBan: $('flPhongBan').value,
+      trangThai: $('flTrangThai').value,
+      targetUserID: $('flNhanVien').value
+    }
+  });
+  if (!res.success) { $('duyetBox').innerHTML = '<div class="alert red">' + escapeHtml(res.message) + '</div>'; return; }
+
+  const list = res.data;
+  if (!list.length) { $('duyetBox').innerHTML = '<div class="alert blue">Không có đơn nào khớp bộ lọc.</div>'; return; }
+
+  let html = '';
+  list.forEach(lv => {
+    const choXuLy = (lv.trangThai === 'Chờ duyệt' || lv.trangThai === 'Yêu cầu đặc biệt');
+    const daDuyet = (lv.trangThai === 'Đã duyệt');
+
+    let tinhCongSelect = '<select id="tc-' + lv.leaveID + '">';
+    options.tinhCong.forEach(t => {
+      tinhCongSelect += '<option value="' + t + '"' + (t === lv.tinhCong ? ' selected' : '') + '>' + t + '</option>';
+    });
+    tinhCongSelect += '</select>';
+
+    html += '<div class="card">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center">' +
+        '<b>' + escapeHtml(lv.hoTen) + '</b>' + badgeHtml(lv.trangThai, lv.vuotSlot) +
+      '</div>' +
+      '<div class="line">' + escapeHtml(lv.phongBan) + ' · <b>' + fmtDate(lv.ngayNghi) + '</b> · ' + escapeHtml(tenCa(lv.caNghi)) + '</div>' +
+      '<div class="line">Loại: <b>' + escapeHtml(lv.loaiNghi) + '</b> · Lý do: ' + escapeHtml(lv.lyDo) + '</div>' +
+      '<div class="line muted">Đăng ký: ' + escapeHtml(lv.thoiGianDangKy) + (lv.taoThayNhanVien ? ' · do QL tạo thay' : '') + '</div>' +
+      (lv.lyDoTuChoi ? '<div class="line" style="color:var(--do)">Từ chối: ' + escapeHtml(lv.lyDoTuChoi) + '</div>' : '') +
+      (choXuLy
+        ? '<label>Tính công</label>' + tinhCongSelect +
+          '<div class="btn-row">' +
+            '<button class="btn green small" onclick="duyetDon(\'' + lv.leaveID + '\', false)">Duyệt</button>' +
+            '<button class="btn purple small" onclick="duyetVuotSlot(\'' + lv.leaveID + '\')">Duyệt vượt slot</button>' +
+          '</div>' +
+          '<div class="btn-row">' +
+            '<button class="btn red small" onclick="tuChoiDon(\'' + lv.leaveID + '\')">Từ chối</button>' +
+            '<button class="btn gray small" onclick="huyDonQL(\'' + lv.leaveID + '\')">Hủy</button>' +
+          '</div>'
+        : (daDuyet ? '<button class="btn gray small" onclick="huyDonQL(\'' + lv.leaveID + '\')">Hủy đơn đã duyệt</button>' : '')) +
+      '</div>';
+  });
+  $('duyetBox').innerHTML = html;
+}
+
+function layTinhCong(leaveID) {
+  const sel = $('tc-' + leaveID);
+  return sel ? sel.value : '';
+}
+
+async function duyetDon(leaveID, xacNhanCanhBao) {
+  const res = await api('approveLeave', {
+    managerUserID: user.userID,
+    leaveID: leaveID,
+    tinhCong: layTinhCong(leaveID),
+    xacNhanCanhBao: xacNhanCanhBao === true
+  });
+
+  if (res.success) {
+    toast(res.message);
+    if (res.warning) alert('⚠ ' + res.warning);
+    loadDuyet();
+    return;
+  }
+  // Cần xác nhận cảnh báo nhân sự tối thiểu
+  if (res.data && res.data.needConfirm) {
+    if (confirm('⚠ ' + res.warning + '\n\nVẫn muốn duyệt?')) duyetDon(leaveID, true);
+    return;
+  }
+  // Slot đầy -> gợi ý duyệt vượt slot
+  if (res.data && res.data.needOverSlot) {
+    if (confirm(res.message + '\n\nDuyệt VƯỢT SLOT luôn?')) duyetVuotSlot(leaveID);
+    return;
+  }
+  alert(res.message);
+}
+
+async function duyetVuotSlot(leaveID) {
+  if (!confirm('Duyệt VƯỢT SLOT sẽ vượt giới hạn người nghỉ của ca. Tiếp tục?')) return;
+  const res = await api('approveOverSlot', {
+    managerUserID: user.userID,
+    leaveID: leaveID,
+    tinhCong: layTinhCong(leaveID)
+  });
+  toast(res.message);
+  if (res.success && res.warning) alert('⚠ ' + res.warning);
+  if (!res.success) alert(res.message);
+  loadDuyet();
+}
+
+async function tuChoiDon(leaveID) {
+  const lyDo = prompt('Nhập lý do từ chối (bắt buộc):');
+  if (lyDo === null) return;
+  if (!lyDo.trim()) { alert('Phải nhập lý do từ chối.'); return; }
+  const res = await api('rejectLeave', { managerUserID: user.userID, leaveID: leaveID, lyDoTuChoi: lyDo.trim() });
+  toast(res.message);
+  if (!res.success) alert(res.message);
+  loadDuyet();
+}
+
+async function huyDonQL(leaveID) {
+  if (!confirm('Hủy đơn này? Slot sẽ được trả lại.')) return;
+  const res = await api('cancelLeaveByManager', { managerUserID: user.userID, leaveID: leaveID });
+  toast(res.message);
+  if (!res.success) alert(res.message);
+  loadDuyet();
+}
+
+/* ================== TẠO ĐƠN THAY NHÂN VIÊN ================== */
+async function openTaoThay() {
+  if (!options) await loadOptions();
+  fillSelect($('ttNhanVien'), options.nhanViens || [], n => n.userID, n => n.hoTen + ' (' + n.phongBan + ')');
+  fillSelect($('ttCa'), options.caLam, c => c.maCa, c => c.tenCa + ' (' + c.gioBatDau + ' - ' + c.gioKetThuc + ')');
+  fillLoaiNghiSelects($('ttLoai'), $('ttTinhCong'));
+  if (!$('ttNgay').value) $('ttNgay').value = todayStr();
+  $('ttKetQua').innerHTML = '';
+  showScreen('scr-taothay', 'Tạo đơn thay NV');
+}
+
+async function submitTaoThay() {
+  const data = {
+    managerUserID: user.userID,
+    targetUserID: $('ttNhanVien').value,
+    ngayNghi: $('ttNgay').value,
+    caNghi: $('ttCa').value,
+    loaiNghi: $('ttLoai').value,
+    lyDo: $('ttLyDo').value.trim(),
+    tinhCong: $('ttTinhCong').value,
+    ghiChu: $('ttGhiChu').value.trim(),
+    trangThaiBanDau: $('ttTrangThai').value,
+    allowOverSlot: $('ttVuotSlot').checked
+  };
+  if (!data.targetUserID) { toast('Vui lòng chọn nhân viên.'); return; }
+  if (!data.ngayNghi) { toast('Vui lòng chọn ngày nghỉ.'); return; }
+  if (!data.lyDo) { toast('Vui lòng nhập lý do.'); return; }
+
+  const res = await api('createLeaveForEmployee', data);
+  if (res.success) {
+    let html = '<div class="alert green">' + escapeHtml(res.message) + '</div>';
+    if (res.warning) html += '<div class="alert orange">⚠ ' + escapeHtml(res.warning) + '</div>';
+    $('ttKetQua').innerHTML = html;
+    $('ttLyDo').value = '';
+    toast(res.message);
+  } else {
+    $('ttKetQua').innerHTML = '<div class="alert red">' + escapeHtml(res.message) + '</div>';
+  }
+}
+
+/* ================== QUẢN LÝ SLOT ================== */
+async function openSlot() {
+  if (!options) await loadOptions();
+  fillSelect($('slPhongBan'), options.phongBans, p => p, p => p);
+  if (!$('slNgay').value) $('slNgay').value = todayStr();
+  showScreen('scr-slot', 'Quản lý slot');
+  loadSlotLists();
+}
+
+async function saveSlotConfig() {
+  const data = {
+    userID: user.userID,
+    ngay: $('slNgay').value,
+    phongBan: $('slPhongBan').value,
+    caNghi: $('slCa').value,
+    soLuongToiDa: $('slSoLuong').value,
+    ghiChu: $('slGhiChu').value.trim()
+  };
+  if (!data.ngay) { toast('Chọn ngày.'); return; }
+  if (data.soLuongToiDa === '') { toast('Nhập số lượng tối đa.'); return; }
+  const res = await api('updateSlotConfig', data);
+  toast(res.message);
+  if (res.success) loadSlotLists();
+}
+
+async function loadSlotLists() {
+  // 1. Slot riêng theo ngày
+  const resSlot = await api('getSlotConfig', { userID: user.userID, filters: { tuNgay: todayStr() } });
+  let html = '<div class="card"><h3>Slot riêng đã cấu hình (từ hôm nay)</h3>';
+  if (resSlot.success && resSlot.data.length) {
+    resSlot.data.forEach(r => {
+      html += '<div class="line">📌 <b>' + fmtDate(r.ngay) + '</b> · ' + escapeHtml(r.phongBan) + ' · ' + r.caNghi +
+        ' · tối đa <b>' + r.soLuongToiDa + '</b>' + (r.ghiChu ? ' · ' + escapeHtml(r.ghiChu) : '') + '</div>';
+    });
+  } else {
+    html += '<div class="muted">Chưa có slot riêng nào.</div>';
+  }
+  html += '</div>';
+  $('slotListBox').innerHTML = html;
+
+  // 2. Slot mặc định
+  const resDef = await api('getDefaultSlotConfig', { userID: user.userID });
+  let h2 = '<div class="card"><h3>Slot mặc định</h3>';
+  if (resDef.success) {
+    resDef.data.forEach(r => {
+      h2 += '<div class="line" style="display:flex;justify-content:space-between;align-items:center">' +
+        '<span>' + escapeHtml(r.phongBan) + ' · ' + r.caNghi + ' · tối đa <b>' + r.soLuongToiDa + '</b></span>' +
+        (user.duocSuaCauHinh ? '<button class="btn small" style="width:auto;margin:0;padding:6px 14px" onclick="suaSlotMacDinh(\'' + r.phongBan + '\',\'' + r.caNghi + '\',' + r.soLuongToiDa + ')">Sửa</button>' : '') +
+        '</div>';
+    });
+  }
+  h2 += '</div>';
+  $('slotDefaultBox').innerHTML = h2;
+
+  // 3. Nhân sự tối thiểu
+  const resMin = await api('getMinimumStaffConfig', { userID: user.userID });
+  let h3 = '<div class="card"><h3>Nhân sự tối thiểu (người đi làm)</h3>';
+  if (resMin.success) {
+    resMin.data.forEach(r => {
+      h3 += '<div class="line" style="display:flex;justify-content:space-between;align-items:center">' +
+        '<span>' + escapeHtml(r.phongBan) + ' · ' + r.caNghi + ' · tối thiểu <b>' + r.soNguoiToiThieu + '</b></span>' +
+        (user.duocSuaCauHinh ? '<button class="btn small" style="width:auto;margin:0;padding:6px 14px" onclick="suaMinStaff(\'' + r.phongBan + '\',\'' + r.caNghi + '\',' + r.soNguoiToiThieu + ')">Sửa</button>' : '') +
+        '</div>';
+    });
+  }
+  h3 += '</div>';
+  $('minStaffBox').innerHTML = h3;
+
+  // 4. Cấu hình chung
+  const resCfg = await api('getGeneralConfig', { userID: user.userID });
+  let h4 = '<div class="card"><h3>Cấu hình chung</h3>';
+  if (resCfg.success) {
+    resCfg.data.forEach(r => {
+      h4 += '<div class="line" style="display:flex;justify-content:space-between;align-items:center">' +
+        '<span><b>' + escapeHtml(r.key) + '</b> = ' + escapeHtml(r.value) + '</span>' +
+        (user.duocSuaCauHinh ? '<button class="btn small" style="width:auto;margin:0;padding:6px 14px" onclick="suaCauHinhChung(\'' + r.key + '\',\'' + escapeHtml(r.value) + '\')">Sửa</button>' : '') +
+        '</div>' +
+        (r.ghiChu ? '<div class="muted">' + escapeHtml(r.ghiChu) + '</div>' : '');
+    });
+  }
+  h4 += '</div>';
+  $('generalCfgBox').innerHTML = h4;
+}
+
+async function suaSlotMacDinh(phongBan, caNghi, hienTai) {
+  const v = prompt('Slot mặc định ' + phongBan + ' ca ' + caNghi + ' (hiện tại: ' + hienTai + '):', hienTai);
+  if (v === null) return;
+  const res = await api('updateDefaultSlotConfig', { userID: user.userID, phongBan, caNghi, soLuongToiDa: v });
+  toast(res.message);
+  if (res.success) loadSlotLists();
+}
+
+async function suaMinStaff(phongBan, caNghi, hienTai) {
+  const v = prompt('Nhân sự tối thiểu ' + phongBan + ' ca ' + caNghi + ' (hiện tại: ' + hienTai + '):', hienTai);
+  if (v === null) return;
+  const res = await api('updateMinimumStaffConfig', { userID: user.userID, phongBan, caNghi, soNguoiToiThieu: v });
+  toast(res.message);
+  if (res.success) loadSlotLists();
+}
+
+async function suaCauHinhChung(key, hienTai) {
+  const v = prompt('Giá trị mới cho ' + key + ' (hiện tại: ' + hienTai + '):', hienTai);
+  if (v === null) return;
+  const res = await api('updateGeneralConfig', { userID: user.userID, key, value: v.trim() });
+  toast(res.message);
+  if (res.success) { loadSlotLists(); options = null; } // reset cache options để lấy SoNgayBaoTruoc mới
+}
+
+/* ================== KHÓA NGÀY ================== */
+async function openKhoa() {
+  if (!options) await loadOptions();
+  fillSelect($('khPhongBan'), options.phongBans, p => p, p => p, { value: '', label: 'Toàn xưởng' });
+  if (!$('khNgay').value) $('khNgay').value = todayStr();
+  showScreen('scr-khoa', 'Khóa ngày');
+  loadKhoaList();
+}
+
+async function doLockDate() {
+  const data = {
+    userID: user.userID,
+    ngay: $('khNgay').value,
+    phongBan: $('khPhongBan').value,
+    caNghi: $('khCa').value,
+    lyDoKhoa: $('khLyDo').value.trim()
+  };
+  if (!data.ngay) { toast('Chọn ngày khóa.'); return; }
+  const phamVi = (data.phongBan || 'Toàn xưởng') + ' - ' + (data.caNghi ? 'ca ' + data.caNghi : 'cả ngày');
+  if (!confirm('Khóa ' + phamVi + ' ngày ' + fmtDate(data.ngay) + '?')) return;
+  const res = await api('lockDate', data);
+  toast(res.message);
+  if (res.success) { $('khLyDo').value = ''; loadKhoaList(); }
+}
+
+async function loadKhoaList() {
+  const res = await api('getLockedDates', { userID: user.userID });
+  let html = '<div class="card"><h3>Ngày đang khóa</h3>';
+  if (res.success && res.data.length) {
+    res.data.forEach(r => {
+      html += '<div class="line" style="display:flex;justify-content:space-between;align-items:center;gap:8px">' +
+        '<span>🔒 <b>' + fmtDate(r.ngay) + '</b> · ' + (r.phongBan ? escapeHtml(r.phongBan) : 'Toàn xưởng') +
+        ' · ' + (r.caNghi ? 'ca ' + r.caNghi : 'cả ngày') +
+        (r.lyDoKhoa ? '<br><span class="muted">' + escapeHtml(r.lyDoKhoa) + '</span>' : '') + '</span>' +
+        '<button class="btn small green" style="width:auto;margin:0;padding:6px 12px" ' +
+          'onclick="doUnlock(\'' + r.ngay + '\',\'' + escapeHtml(r.phongBan) + '\',\'' + r.caNghi + '\')">Mở khóa</button>' +
+        '</div>';
+    });
+  } else {
+    html += '<div class="muted">Không có ngày nào đang khóa.</div>';
+  }
+  html += '</div>';
+  $('khoaListBox').innerHTML = html;
+}
+
+async function doUnlock(ngay, phongBan, caNghi) {
+  if (!confirm('Mở khóa ' + (phongBan || 'toàn xưởng') + ' ' + (caNghi ? 'ca ' + caNghi : 'cả ngày') + ' ngày ' + fmtDate(ngay) + '?')) return;
+  const res = await api('unlockDate', { userID: user.userID, ngay, phongBan, caNghi });
+  toast(res.message);
+  loadKhoaList();
+}
+
+/* ================== KHỞI ĐỘNG ================== */
+(async function init() {
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (!saved) { showScreen('scr-login'); return; }
+  try { user = JSON.parse(saved); } catch (e) { logout(); return; }
+
+  // Làm mới thông tin user (phòng khi bị đổi quyền / khóa tài khoản)
+  const res = await api('refreshUser', { userID: user.userID });
+  if (res.success) {
+    user = res.data;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+    await loadOptions();
+    renderHome();
+  } else {
+    logout();
+    if (res.message && res.message.indexOf('máy chủ') < 0) toast(res.message);
+  }
+})();
+</script>
+</body>
+</html>
