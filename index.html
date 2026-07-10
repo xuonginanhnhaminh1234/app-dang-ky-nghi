@@ -571,6 +571,61 @@
 
 <!-- V3.12 CẤU HÌNH NHÂN SỰ -->
 <div class="screen" id="scr-cauhinhns">
+  <!-- V3.3: Vị trí chấm công GPS -->
+  <div class="card">
+    <h3>📍 Cấu hình vị trí chấm công</h3>
+    <div id="vtHienTai"></div>
+    <button class="btn" onclick="layViTriLamXuong()">🎯 Lấy vị trí hiện tại làm vị trí xưởng</button>
+    <label>Tên địa điểm</label>
+    <input type="text" id="vtTen" placeholder="Xưởng chính">
+    <div class="filter-grid">
+      <div><label>Vĩ độ</label><input type="text" id="vtViDo" inputmode="decimal" placeholder="VD: 10.776530"></div>
+      <div><label>Kinh độ</label><input type="text" id="vtKinhDo" inputmode="decimal" placeholder="VD: 106.700981"></div>
+    </div>
+    <label>Bán kính cho phép (mét)</label>
+    <input type="number" id="vtBanKinh" inputmode="numeric" placeholder="400">
+    <div class="check-row">
+      <input type="checkbox" id="vtBatBuoc" checked>
+      <span>Bắt buộc GPS khi chấm công</span>
+    </div>
+    <div class="check-row">
+      <input type="checkbox" id="vtNgoai">
+      <span>Cho phép chấm ngoài vị trí (chỉ ghi cảnh báo, không chặn)</span>
+    </div>
+    <button class="btn green" onclick="saveViTriCC()">💾 Lưu cấu hình vị trí</button>
+    <p class="muted" style="margin-top:8px">GPS trong nhà xưởng có thể lệch vài chục mét — bán kính 400m là mức an toàn, ít chặn oan.</p>
+  </div>
+
+  <!-- V3.2: Ca làm theo phòng ban -->
+  <div class="card">
+    <h3>🏭 Cấu hình ca theo phòng ban</h3>
+    <p class="muted">Ưu tiên tính công: lịch riêng (LICH_LAM) → ca phòng ban → giờ chung toàn xưởng. Nghỉ trưa và mốc tăng ca lấy từ dòng ca FULL.</p>
+    <div class="filter-grid">
+      <div><label>Phòng ban</label><select id="capbPhongBan"></select></div>
+      <div><label>Ca làm</label>
+        <select id="capbCa">
+          <option value="SANG">SANG</option>
+          <option value="CHIEU">CHIEU</option>
+          <option value="FULL">FULL</option>
+        </select>
+      </div>
+    </div>
+    <div class="filter-grid">
+      <div><label>Giờ bắt đầu</label><input type="time" id="capbBD"></div>
+      <div><label>Giờ kết thúc</label><input type="time" id="capbKT"></div>
+    </div>
+    <div class="filter-grid">
+      <div><label>Nghỉ trưa từ (ca FULL)</label><input type="time" id="capbTruaBD"></div>
+      <div><label>Nghỉ trưa đến (ca FULL)</label><input type="time" id="capbTruaKT"></div>
+    </div>
+    <div class="filter-grid">
+      <div><label>Phút cho phép trễ</label><input type="number" id="capbTre" inputmode="numeric" placeholder="5"></div>
+      <div><label>Phút cho phép về sớm</label><input type="number" id="capbSom" inputmode="numeric" placeholder="5"></div>
+    </div>
+    <label>Tính tăng ca sau giờ</label><input type="time" id="capbOT">
+    <button class="btn green" onclick="saveCaPhongBan()">💾 Lưu ca phòng ban</button>
+  </div>
+  <div id="caPhongBanBox"></div>
   <div id="cauHinhNSBox"></div>
 </div>
 
@@ -580,9 +635,17 @@
 
 <script>
 /* =====================================================
- * CẤU HÌNH: dán link Web App /exec của Apps Script vào đây
+ * CẤU HÌNH API (V3.3.2)
+ * App gọi qua Netlify Function proxy (cùng domain) nên mobile
+ * browser không phải fetch thẳng sang script.google.com.
+ * Link Apps Script /exec giờ đặt trong netlify/functions/api.js
+ * (hoặc biến môi trường APPS_SCRIPT_URL trên Netlify).
+ *
+ * LƯU Ý: link /exec đúng có dạng
+ *   https://script.google.com/macros/s/AKfycb.../exec
+ * KHÔNG phải link library dạng /macros/library/d/...
  * ===================================================== */
-const API_URL = 'https://script.google.com/macros/library/d/13vL973BY9xGRms8RGd1nSSCTfbk47oBFGxc-qmZ-sU0EuvgwsHSFoxvW/8';
+const API_URL = '/.netlify/functions/api';
 
 const STORAGE_KEY = 'nghiapp_user';
 let user = null;      // user đang đăng nhập
@@ -1636,20 +1699,68 @@ async function loadChamCong() {
     html += '<div class="alert blue" style="margin-top:8px">Hôm nay bạn chưa chấm công.</div>';
   }
   if (!d.choPhepChamCong) html += '<div class="alert orange">Chấm công đang tạm khóa bởi quản lý.</div>';
+
+  // V3.3: thông tin GPS
+  gpsCC = d.gps || null;
+  if (gpsCC && gpsCC.batBuocGPS) {
+    html += gpsCC.daCauHinhToaDo
+      ? '<div class="line muted" style="margin-top:6px">📍 Chấm công cần bật định vị GPS (trong bán kính ' + gpsCC.banKinhMet + 'm quanh ' + escapeHtml(gpsCC.tenDiaDiem || 'xưởng') + ').</div>'
+      : '<div class="alert orange">📍 Bắt buộc GPS nhưng CHƯA cấu hình tọa độ xưởng. Quản lý vào Cấu hình nhân sự → Vị trí chấm công để thiết lập.</div>';
+  }
   $('ccBox').innerHTML = html;
 }
 
-async function doCheckIn() {
-  const res = await api('checkIn', { userID: user.userID, ghiChu: $('ccGhiChu').value.trim() });
-  if (res.success) { toast(res.message); $('ccGhiChu').value = ''; } else { alert(res.message); }
+/* ---- V3.3: GPS khi chấm công ---- */
+let gpsCC = null; // thông tin yêu cầu GPS lấy từ getTodayAttendance
+
+// Lấy vị trí hiện tại của điện thoại. Trả {lat, lng, acc} hoặc {err: 'thông báo'}
+function layViTri_() {
+  return new Promise(resolve => {
+    if (!navigator.geolocation) {
+      resolve({ err: 'Trình duyệt không hỗ trợ định vị GPS. Hãy dùng Chrome/Safari mới hơn.' });
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude, acc: Math.round(pos.coords.accuracy) }),
+      e => {
+        let msg = 'Không lấy được vị trí. Vui lòng bật định vị GPS và thử lại.';
+        if (e.code === 1) msg = 'Bạn đã từ chối quyền vị trí. Vào cài đặt trình duyệt, cho phép truy cập vị trí rồi thử lại.';
+        else if (e.code === 3) msg = 'Lấy vị trí quá lâu. Vui lòng ra chỗ thoáng hơn và thử lại.';
+        resolve({ err: msg });
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  });
+}
+
+async function guiChamCong_(action) {
+  toast('Đang lấy vị trí của bạn...');
+  const vt = await layViTri_();
+
+  // Nơi làm việc bắt buộc GPS -> không có vị trí thì chặn ngay tại frontend
+  // (backend vẫn chặn lần nữa, đây chỉ là lớp báo lỗi sớm cho dễ hiểu)
+  if (vt.err && gpsCC && gpsCC.batBuocGPS) { alert(vt.err); return; }
+  if (!vt.err) toast('Đã có vị trí, đang chấm công...');
+
+  const res = await api(action, {
+    userID: user.userID,
+    ghiChu: $('ccGhiChu').value.trim(),
+    latitude: vt.err ? '' : vt.lat,
+    longitude: vt.err ? '' : vt.lng,
+    accuracy: vt.err ? '' : vt.acc
+  });
+  if (res.success) {
+    toast(res.message);
+    $('ccGhiChu').value = '';
+    if (res.warning) alert('⚠ ' + res.warning);
+  } else {
+    alert(res.message);
+  }
   loadChamCong();
 }
 
-async function doCheckOut() {
-  const res = await api('checkOut', { userID: user.userID, ghiChu: $('ccGhiChu').value.trim() });
-  if (res.success) { toast(res.message); $('ccGhiChu').value = ''; } else { alert(res.message); }
-  loadChamCong();
-}
+function doCheckIn() { guiChamCong_('checkIn'); }
+function doCheckOut() { guiChamCong_('checkOut'); }
 
 /* ---------- V3.2 CÔNG CỦA TÔI ---------- */
 async function openCongToi() {
@@ -2343,8 +2454,163 @@ async function loadLuong() {
 
 /* ---------- V3.12 CẤU HÌNH NHÂN SỰ ---------- */
 async function openCauHinhNS() {
+  if (!options) await loadOptions();
+  fillSelect($('capbPhongBan'), options.phongBans, p => p, p => p);
   showScreen('scr-cauhinhns', 'Cấu hình nhân sự');
+  loadViTriCC();
+  loadCaPhongBan();
   loadCauHinhNS();
+}
+
+/* ---- V3.3: Cấu hình vị trí chấm công ---- */
+let vtData = null; // địa điểm đầu tiên trong sheet (DD001)
+
+async function loadViTriCC() {
+  $('vtHienTai').innerHTML = '<div class="muted">Đang tải...</div>';
+  const res = await api('getAttendanceLocationConfig', { userID: user.userID });
+  if (!res.success) {
+    vtData = null;
+    $('vtHienTai').innerHTML = '<div class="alert red">' + escapeHtml(res.message) + '</div>';
+    return;
+  }
+  vtData = res.data.length ? res.data[0] : null;
+
+  if (!vtData) {
+    $('vtHienTai').innerHTML = '<div class="alert orange">Chưa có địa điểm nào. Chạy setupSheets() để tạo dòng mẫu, hoặc điền form rồi bấm Lưu để tạo mới.</div>';
+    return;
+  }
+
+  const daCoToaDo = vtData.viDo && vtData.kinhDo;
+  $('vtHienTai').innerHTML = daCoToaDo
+    ? '<div class="alert green">✅ <b>' + escapeHtml(vtData.tenDiaDiem) + '</b>: (' + escapeHtml(vtData.viDo) + ', ' + escapeHtml(vtData.kinhDo) + ')' +
+      ' · bán kính <b>' + escapeHtml(vtData.banKinhMet || '400') + 'm</b>' +
+      ' · ' + (vtData.batBuocGPS ? 'bắt buộc GPS' : 'KHÔNG bắt buộc GPS') +
+      (vtData.choPhepChamCongNgoaiViTri ? ' · cho phép chấm ngoài vị trí' : '') +
+      (vtData.thoiGianCapNhat ? '<br><span class="muted">Cập nhật: ' + escapeHtml(vtData.thoiGianCapNhat) + '</span>' : '') +
+      '</div>'
+    : '<div class="alert orange">⚠ Chưa có tọa độ xưởng — nhân viên sẽ KHÔNG chấm công được khi đang bắt buộc GPS. Đứng tại xưởng và bấm nút bên dưới.</div>';
+
+  // Đổ dữ liệu hiện tại lên form
+  $('vtTen').value = vtData.tenDiaDiem;
+  $('vtViDo').value = vtData.viDo;
+  $('vtKinhDo').value = vtData.kinhDo;
+  $('vtBanKinh').value = vtData.banKinhMet || 400;
+  $('vtBatBuoc').checked = vtData.batBuocGPS;
+  $('vtNgoai').checked = vtData.choPhepChamCongNgoaiViTri;
+}
+
+async function layViTriLamXuong() {
+  toast('Đang lấy vị trí của bạn...');
+  const vt = await layViTri_();
+  if (vt.err) { alert(vt.err); return; }
+  if (!confirm('Dùng vị trí hiện tại làm vị trí xưởng?\n\nTọa độ: ' + vt.lat.toFixed(6) + ', ' + vt.lng.toFixed(6) + '\nSai số GPS: ±' + vt.acc + 'm\n\nNên đứng giữa xưởng khi bấm nút này.')) return;
+  const res = await api('setCurrentLocationAsWorkshop', {
+    userID: user.userID,
+    latitude: vt.lat, longitude: vt.lng, accuracy: vt.acc,
+    diaDiemID: vtData ? vtData.diaDiemID : 'DD001'
+  });
+  res.success ? toast(res.message) : alert(res.message);
+  loadViTriCC();
+}
+
+async function saveViTriCC() {
+  const res = await api('updateAttendanceLocationConfig', {
+    userID: user.userID,
+    diaDiemID: vtData ? vtData.diaDiemID : 'DD001',
+    tenDiaDiem: $('vtTen').value.trim() || 'Xưởng chính',
+    viDo: $('vtViDo').value.trim(),
+    kinhDo: $('vtKinhDo').value.trim(),
+    banKinhMet: $('vtBanKinh').value || 400,
+    batBuocGPS: $('vtBatBuoc').checked,
+    choPhepChamCongNgoaiViTri: $('vtNgoai').checked,
+    trangThai: 'Active'
+  });
+  res.success ? toast(res.message) : alert(res.message);
+  loadViTriCC();
+}
+
+/* ---- V3.2: Ca làm theo phòng ban ---- */
+let caPBData = [];
+
+async function loadCaPhongBan() {
+  $('caPhongBanBox').innerHTML = '<div class="muted" style="margin-top:12px">Đang tải ca phòng ban...</div>';
+  const res = await api('getDepartmentShiftConfig', { userID: user.userID });
+  if (!res.success) { caPBData = []; $('caPhongBanBox').innerHTML = '<div class="alert red">' + escapeHtml(res.message) + '</div>'; return; }
+  caPBData = res.data;
+
+  let html = '<div class="card"><h3>Ca đang cấu hình</h3>';
+  if (!caPBData.length) {
+    html += '<div class="alert orange">Chưa có dòng nào trong CAU_HINH_CA_PHONG_BAN — app đang dùng giờ chung toàn xưởng. Chạy setupSheets() để tạo dữ liệu mẫu, hoặc thêm bằng form trên.</div>';
+  }
+  caPBData.forEach((r, i) => {
+    const tat = r.trangThai !== 'Active';
+    html += '<div class="line" style="display:flex;justify-content:space-between;align-items:center;gap:8px' + (tat ? ';opacity:.5' : '') + '">' +
+      '<span><b>' + escapeHtml(r.phongBan) + '</b> · ' + escapeHtml(r.caLam) + ': <b>' + escapeHtml(r.gioBatDau) + ' - ' + escapeHtml(r.gioKetThuc) + '</b>' +
+      (r.gioNghiTruaBatDau ? '<br><span class="muted">Nghỉ trưa ' + escapeHtml(r.gioNghiTruaBatDau) + '-' + escapeHtml(r.gioNghiTruaKetThuc) + '</span>' : '') +
+      '<span class="muted"> · trễ ' + escapeHtml(r.phutChoPhepTre || '0') + 'p / sớm ' + escapeHtml(r.phutChoPhepVeSom || '0') + 'p</span>' +
+      (tat ? ' <span class="badge da-huy">Tắt</span>' : '') + '</span>' +
+      '<span style="display:flex;gap:6px;flex-shrink:0">' +
+        '<button class="btn small" style="width:auto;margin:0;padding:6px 12px" onclick="suaCaPB(' + i + ')">Sửa</button>' +
+        '<button class="btn small ' + (tat ? 'green' : 'gray') + '" style="width:auto;margin:0;padding:6px 12px" onclick="batTatCaPB(' + i + ')">' + (tat ? 'Bật' : 'Tắt') + '</button>' +
+      '</span>' +
+      '</div>';
+  });
+  html += '</div>';
+  $('caPhongBanBox').innerHTML = html;
+}
+
+// Bấm Sửa: đổ dòng đã có lên form phía trên
+function suaCaPB(i) {
+  const r = caPBData[i];
+  if (!r) return;
+  $('capbPhongBan').value = r.phongBan;
+  $('capbCa').value = r.caLam;
+  $('capbBD').value = r.gioBatDau;
+  $('capbKT').value = r.gioKetThuc;
+  $('capbTruaBD').value = r.gioNghiTruaBatDau;
+  $('capbTruaKT').value = r.gioNghiTruaKetThuc;
+  $('capbTre').value = r.phutChoPhepTre;
+  $('capbSom').value = r.phutChoPhepVeSom;
+  $('capbOT').value = r.tinhTangCaSau;
+  toast('Đã đổ dữ liệu ' + r.phongBan + ' ca ' + r.caLam + ' lên form. Sửa xong bấm Lưu.');
+  window.scrollTo(0, 0);
+}
+
+async function saveCaPhongBan() {
+  if (!$('capbBD').value || !$('capbKT').value) { toast('Nhập đủ giờ bắt đầu và kết thúc.'); return; }
+  const res = await api('updateDepartmentShiftConfig', {
+    userID: user.userID,
+    phongBan: $('capbPhongBan').value,
+    caLam: $('capbCa').value,
+    gioBatDau: $('capbBD').value,
+    gioKetThuc: $('capbKT').value,
+    gioNghiTruaBatDau: $('capbTruaBD').value,
+    gioNghiTruaKetThuc: $('capbTruaKT').value,
+    phutChoPhepTre: $('capbTre').value,
+    phutChoPhepVeSom: $('capbSom').value,
+    tinhTangCaSau: $('capbOT').value,
+    trangThai: 'Active'
+  });
+  res.success ? toast(res.message) : alert(res.message);
+  if (res.success) loadCaPhongBan();
+}
+
+async function batTatCaPB(i) {
+  const r = caPBData[i];
+  if (!r) return;
+  const moi = r.trangThai === 'Active' ? 'Inactive' : 'Active';
+  if (!confirm((moi === 'Inactive' ? 'TẮT' : 'BẬT') + ' ca ' + r.caLam + ' của ' + r.phongBan + '?\n(Tắt = phòng ban này quay về dùng giờ chung toàn xưởng cho ca đó)')) return;
+  const res = await api('updateDepartmentShiftConfig', {
+    userID: user.userID,
+    phongBan: r.phongBan, caLam: r.caLam,
+    gioBatDau: r.gioBatDau, gioKetThuc: r.gioKetThuc,
+    gioNghiTruaBatDau: r.gioNghiTruaBatDau, gioNghiTruaKetThuc: r.gioNghiTruaKetThuc,
+    phutChoPhepTre: r.phutChoPhepTre, phutChoPhepVeSom: r.phutChoPhepVeSom,
+    tinhTangCaSau: r.tinhTangCaSau, ghiChu: r.ghiChu,
+    trangThai: moi
+  });
+  res.success ? toast(res.message) : alert(res.message);
+  loadCaPhongBan();
 }
 
 async function loadCauHinhNS() {
