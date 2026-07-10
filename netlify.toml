@@ -1,0 +1,7 @@
+# Cấu hình Netlify - đảm bảo Netlify tìm đúng thư mục function
+# (netlify/functions là mặc định, khai báo rõ để không phụ thuộc cài đặt site)
+[build]
+  publish = "."
+
+[functions]
+  directory = "netlify/functions"
