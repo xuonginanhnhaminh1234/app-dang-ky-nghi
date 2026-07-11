@@ -77,6 +77,16 @@
     margin: 20px 4px 2px; font-size: 12px; font-weight: 800;
     letter-spacing: 1px; color: var(--xam);
   }
+  /* V4: badge đỏ trên nút menu */
+  .menu-badge {
+    margin-left: auto; background: var(--do); color: #fff;
+    border-radius: 12px; padding: 2px 9px; font-size: 12px; font-weight: 800;
+  }
+  /* V4: popup thông báo */
+  #tbPopup {
+    position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 90;
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
 
   /* ============ BADGE TRẠNG THÁI ============ */
   .badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; color: #fff; }
@@ -171,8 +181,14 @@
   <button class="menu-btn" onclick="openDangKy()"><span class="icon">📝</span> Đăng ký nghỉ</button>
   <button class="menu-btn" onclick="openMyLeaves()"><span class="icon">📅</span> Lịch nghỉ của tôi</button>
   <button class="menu-btn" onclick="openTamUngToi()"><span class="icon">💵</span> Tạm ứng của tôi</button>
+  <!-- V4: mặc định ẩn, chỉ hiện khi flag module bật cho user này -->
+  <button class="menu-btn hidden" id="mnThongBao" onclick="openThongBao()"><span class="icon">📢</span> Thông báo <span class="menu-badge hidden" id="tbBadge"></span></button>
 
   <div class="group-label hidden" id="lblQuanLy">QUẢN LÝ</div>
+  <!-- V4: nút quản lý mới, mặc định ẩn theo flag -->
+  <button class="menu-btn hidden" id="mnPending" onclick="openPending()"><span class="icon">📌</span> Việc cần xử lý <span class="menu-badge hidden" id="pendingBadge"></span></button>
+  <button class="menu-btn hidden" id="mnBirthday" onclick="openBirthday()"><span class="icon">🎂</span> Sinh nhật & thử việc</button>
+  <button class="menu-btn hidden" id="mnTBQL" onclick="openTBQL()"><span class="icon">📣</span> Quản lý thông báo</button>
   <button class="menu-btn hidden" id="mnHRDash" onclick="openHRDash()"><span class="icon">📈</span> Dashboard nhân sự</button>
   <button class="menu-btn hidden" id="mnDashboard" onclick="openDashboard()"><span class="icon">📊</span> Dashboard nghỉ phép</button>
   <button class="menu-btn hidden" id="mnDuyet" onclick="openDuyet()"><span class="icon">✅</span> Duyệt nghỉ</button>
@@ -441,6 +457,11 @@
     <label>Phòng ban *</label><select id="nvPhongBan"></select>
     <label>Chức vụ</label><input type="text" id="nvChucVu">
     <label>Ngày vào làm</label><input type="date" id="nvNgayVao">
+    <!-- V4: phục vụ module Sinh nhật + Hết thử việc -->
+    <div class="filter-grid">
+      <div><label>Ngày sinh</label><input type="date" id="nvNgaySinh"></div>
+      <div><label>Ngày hết thử việc</label><input type="date" id="nvNgayHetTV"></div>
+    </div>
     <label>Hình thức lương</label>
     <select id="nvHinhThuc">
       <option>Theo tháng</option>
@@ -571,6 +592,9 @@
 
 <!-- V3.12 CẤU HÌNH NHÂN SỰ -->
 <div class="screen" id="scr-cauhinhns">
+  <!-- V4: bật/tắt module (FALSE / TEST / TRUE) -->
+  <div id="moduleFlagBox"></div>
+
   <!-- V3.3: Vị trí chấm công GPS -->
   <div class="card">
     <h3>📍 Cấu hình vị trí chấm công</h3>
@@ -627,6 +651,57 @@
   </div>
   <div id="caPhongBanBox"></div>
   <div id="cauHinhNSBox"></div>
+</div>
+
+<!-- ================================================== -->
+<!-- ============ CÁC MÀN HÌNH V4.0 ĐỢT 1 ============= -->
+<!-- ================================================== -->
+
+<!-- V4 M1: VIỆC CẦN XỬ LÝ -->
+<div class="screen" id="scr-pending">
+  <div id="pendingBox"></div>
+</div>
+
+<!-- V4 M2+M3: SINH NHẬT & THỬ VIỆC -->
+<div class="screen" id="scr-birthday">
+  <div id="birthdayBox"></div>
+</div>
+
+<!-- V4 M7: THÔNG BÁO (NHÂN VIÊN XEM) -->
+<div class="screen" id="scr-thongbao">
+  <div id="thongBaoBox"></div>
+</div>
+
+<!-- V4 M7: QUẢN LÝ THÔNG BÁO -->
+<div class="screen" id="scr-tbql">
+  <div class="card">
+    <h3>📣 Đăng thông báo mới</h3>
+    <label>Tiêu đề *</label>
+    <input type="text" id="tbTieuDe" placeholder="VD: Nghỉ lễ 2/9">
+    <label>Nội dung *</label>
+    <textarea id="tbNoiDung" placeholder="Nội dung thông báo..."></textarea>
+    <label>Gửi đến</label>
+    <select id="tbPhongBan"></select>
+    <label>Hạn hiển thị (để trống = không giới hạn)</label>
+    <input type="date" id="tbHan">
+    <div class="check-row">
+      <input type="checkbox" id="tbQuanTrong">
+      <span>Quan trọng (hiện popup khi nhân viên mở app)</span>
+    </div>
+    <button class="btn green" onclick="taoTB()">📢 Đăng thông báo</button>
+  </div>
+  <div id="tbqlBox"></div>
+</div>
+
+<!-- V4 M7: POPUP THÔNG BÁO QUAN TRỌNG -->
+<div id="tbPopup" class="hidden">
+  <div class="card" style="max-width:480px;width:100%;margin:0">
+    <h3 id="tbPopupTieuDe"></h3>
+    <div class="line" id="tbPopupNoiDung" style="white-space:pre-wrap"></div>
+    <div class="line muted" id="tbPopupMeta"></div>
+    <button class="btn green" onclick="dongPopupTB(true)">✅ Đã đọc</button>
+    <button class="btn gray small" onclick="dongPopupTB(false)">Để sau</button>
+  </div>
 </div>
 
 <!-- ================= LOADING & TOAST ================= -->
@@ -760,6 +835,9 @@ function logout() {
   user = null;
   options = null;
   $('inpPin').value = '';
+  // V4-RC1: dọn sạch trạng thái module để user sau (máy dùng chung)
+  // không thấy nút/badge/popup của user trước
+  try { resetV4UI_(); flagsUserID = null; daHienPopupTB = false; } catch (e) { /* im lặng */ }
   showScreen('scr-login');
 }
 
@@ -822,6 +900,9 @@ function renderHome() {
   $('lblQuanLy').classList.toggle('hidden', !coQuanLy);
 
   showScreen('scr-home', 'Trang chính');
+  // V4: nạp flags + badge + popup NGẦM sau khi Home đã hiện.
+  // Bọc try/catch bên trong - lỗi module mới không crash Home, không logout.
+  loadV4HomeExtras();
 }
 
 /* ================== ĐĂNG KÝ NGHỈ ================== */
@@ -2115,6 +2196,8 @@ function suaNV(userID) {
   $('nvPhongBan').value = nv.phongBan;
   $('nvChucVu').value = nv.chucVu;
   $('nvNgayVao').value = nv.ngayVaoLam || '';
+  $('nvNgaySinh').value = nv.ngaySinh || '';
+  $('nvNgayHetTV').value = nv.ngayKetThucThuViec || '';
   $('nvHinhThuc').value = nv.hinhThucLuong || 'Theo tháng';
   $('nvLuongCB').value = nv.luongCoBan || '';
   $('nvLuongGio').value = nv.luongTheoGio || '';
@@ -2130,7 +2213,7 @@ function resetNVForm() {
   nvEditID = null;
   $('nvFormTitle').textContent = '➕ Thêm nhân viên mới';
   $('nvPinNote').textContent = '(bắt buộc khi thêm mới)';
-  ['nvHoTen', 'nvMaPIN', 'nvSDT', 'nvChucVu', 'nvNgayVao', 'nvLuongCB', 'nvLuongGio', 'nvPhuCap', 'nvSTK', 'nvNganHang', 'nvGhiChu'].forEach(id => { $(id).value = ''; });
+  ['nvHoTen', 'nvMaPIN', 'nvSDT', 'nvChucVu', 'nvNgayVao', 'nvNgaySinh', 'nvNgayHetTV', 'nvLuongCB', 'nvLuongGio', 'nvPhuCap', 'nvSTK', 'nvNganHang', 'nvGhiChu'].forEach(id => { $(id).value = ''; });
   $('nvBtnHuySua').classList.add('hidden');
 }
 
@@ -2142,6 +2225,8 @@ async function saveNhanVien() {
     phongBan: $('nvPhongBan').value,
     chucVu: $('nvChucVu').value.trim(),
     ngayVaoLam: $('nvNgayVao').value,
+    ngaySinh: $('nvNgaySinh').value,
+    ngayKetThucThuViec: $('nvNgayHetTV').value,
     hinhThucLuong: $('nvHinhThuc').value,
     luongCoBan: $('nvLuongCB').value,
     luongTheoGio: $('nvLuongGio').value,
@@ -2468,6 +2553,7 @@ async function openCauHinhNS() {
   if (!options) await loadOptions();
   fillSelect($('capbPhongBan'), options.phongBans, p => p, p => p);
   showScreen('scr-cauhinhns', 'Cấu hình nhân sự');
+  loadModuleFlagsCard(); // V4: card bật/tắt module
   loadViTriCC();
   loadCaPhongBan();
   loadCauHinhNS();
@@ -2650,6 +2736,370 @@ async function suaCauHinhNS(key, hienTai) {
   const res = await api('updateAttendanceConfig', { userID: user.userID, key: key, value: v.trim() });
   res.success ? toast(res.message) : alert(res.message);
   loadCauHinhNS();
+}
+
+/* ====================================================
+ * ============ JS V4.0 ĐỢT 1 =========================
+ * Flags + Việc cần xử lý + Sinh nhật/Thử việc + Thông báo.
+ * Mọi lệnh gọi NGẦM đều qua apiSilent + try/catch:
+ * lỗi module mới -> app hoạt động như V3.3.3, không crash Home.
+ * ==================================================== */
+
+let moduleFlags = {};    // module -> được dùng (đã tính TEST) cho user hiện tại
+let moduleStates = {};   // module -> FALSE/TEST/TRUE (backend chỉ trả cho quản lý)
+let daHienPopupTB = false; // popup thông báo chỉ hiện 1 lần mỗi lượt mở app
+let tbPopupHienTai = null;
+let pendingData = null;
+
+// Gọi API NGẦM: không bật overlay loading, không bao giờ throw
+async function apiSilent(action, data) {
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: action, data: data || {} })
+    });
+    return await res.json();
+  } catch (e) {
+    return { success: false, message: 'silent-fail' };
+  }
+}
+
+function laQuanLyFE_() {
+  return !!(user && (user.duocXemDashboard || user.duocDuyetNghi || user.duocSuaCauHinh ||
+    user.duocQuanLyNhanSu === true || user.duocSuaCong === true || user.duocXemBangLuong === true ||
+    user.duocDuyetTamUng === true || user.duocChotLuong === true));
+}
+
+/* ---- Nạp flags + badge + popup sau khi Home hiện ---- */
+// RC1: theo dõi user đã nạp flags - đổi user thì reset UI V4 về ẩn TRƯỚC khi fetch,
+// để nếu fetch lỗi thì user mới không thừa hưởng nút/badge của user trước
+let flagsUserID = null;
+
+function resetV4UI_() {
+  moduleFlags = {}; moduleStates = {};
+  ['mnThongBao', 'mnPending', 'mnBirthday', 'mnTBQL', 'tbBadge', 'pendingBadge'].forEach(id => {
+    const el = $(id);
+    if (el) el.classList.add('hidden');
+  });
+  const popup = $('tbPopup');
+  if (popup) popup.classList.add('hidden');
+  tbPopupHienTai = null;
+}
+
+async function loadV4HomeExtras() {
+  try {
+    if (flagsUserID !== user.userID) {
+      resetV4UI_();
+      flagsUserID = user.userID;
+    }
+    const res = await apiSilent('getModuleConfig', { userID: user.userID });
+    if (!res.success || !res.data) return; // lỗi -> giữ nguyên như V3.3.3 (nút V4 vẫn ẩn)
+    moduleFlags = {}; moduleStates = {};
+    res.data.forEach(m => {
+      moduleFlags[m.module] = m.duocDung === true;
+      if (m.trangThai) moduleStates[m.module] = m.trangThai;
+    });
+    const laQL = laQuanLyFE_();
+    $('mnThongBao').classList.toggle('hidden', !moduleFlags.Announcement);
+    $('mnPending').classList.toggle('hidden', !(moduleFlags.ReminderCenter && laQL));
+    $('mnBirthday').classList.toggle('hidden', !((moduleFlags.Birthday || moduleFlags.Probation) && laQL));
+    $('mnTBQL').classList.toggle('hidden', !(moduleFlags.Announcement && (user.duocDuyetNghi || user.duocSuaCauHinh)));
+
+    // Gọi ngầm tiếp theo CHỈ khi flag bật (hợp đồng: flag FALSE = không request ngầm)
+    if (moduleFlags.ReminderCenter && laQL) loadPendingBadge();
+    if (moduleFlags.Announcement) loadThongBaoNgam();
+  } catch (e) { /* im lặng */ }
+}
+
+async function loadPendingBadge() {
+  try {
+    const res = await apiSilent('getPendingTasks', { userID: user.userID });
+    if (res.success && res.data && res.data.tongViec > 0) {
+      $('pendingBadge').textContent = res.data.tongViec;
+      $('pendingBadge').classList.remove('hidden');
+    } else {
+      $('pendingBadge').classList.add('hidden');
+    }
+  } catch (e) { /* im lặng */ }
+}
+
+async function loadThongBaoNgam() {
+  try {
+    const res = await apiSilent('getAnnouncements', { userID: user.userID });
+    if (!res.success || !res.data) return;
+    if (res.data.soChuaDoc > 0) {
+      $('tbBadge').textContent = res.data.soChuaDoc;
+      $('tbBadge').classList.remove('hidden');
+    } else {
+      $('tbBadge').classList.add('hidden');
+    }
+    if (!daHienPopupTB && res.data.popup && res.data.popup.length > 0) {
+      daHienPopupTB = true;
+      hienPopupTB(res.data.popup[0]);
+    }
+  } catch (e) { /* im lặng */ }
+}
+
+/* ---- Popup thông báo quan trọng ---- */
+function hienPopupTB(tb) {
+  tbPopupHienTai = tb;
+  $('tbPopupTieuDe').textContent = '📢 ' + tb.tieuDe;
+  $('tbPopupNoiDung').textContent = tb.noiDung;
+  $('tbPopupMeta').textContent = 'Đăng lúc ' + tb.thoiGianTao + (tb.phongBan ? ' · gửi ' + tb.phongBan : ' · toàn xưởng');
+  $('tbPopup').classList.remove('hidden');
+}
+
+async function dongPopupTB(daDoc) {
+  $('tbPopup').classList.add('hidden');
+  const tb = tbPopupHienTai;
+  tbPopupHienTai = null;
+  // RC1: guard user còn đăng nhập - tránh lỗi ngầm nếu popup bị bấm sau khi logout
+  if (daDoc && tb && user) {
+    await apiSilent('markAnnouncementRead', { userID: user.userID, thongBaoID: tb.thongBaoID });
+    if (user) loadThongBaoNgam();
+  }
+}
+
+/* ---- V4 M7: màn Thông báo (nhân viên xem) ---- */
+async function openThongBao() {
+  showScreen('scr-thongbao', 'Thông báo');
+  loadThongBao();
+}
+
+async function loadThongBao() {
+  $('thongBaoBox').innerHTML = '<div class="muted" style="margin-top:12px">Đang tải...</div>';
+  const res = await api('getAnnouncements', { userID: user.userID });
+  if (!res.success) { $('thongBaoBox').innerHTML = '<div class="alert red">' + escapeHtml(res.message) + '</div>'; return; }
+
+  const ds = res.data.danhSach || [];
+  let html = '';
+  ds.forEach(tb => {
+    html += '<div class="card"' + (tb.daDoc ? ' style="opacity:.65"' : '') + '>' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">' +
+        '<h3>' + (tb.quanTrong ? '❗ ' : '📢 ') + escapeHtml(tb.tieuDe) + '</h3>' +
+        (tb.daDoc ? '<span class="badge da-duyet">Đã đọc</span>' : '<span class="badge cho-duyet">Mới</span>') +
+      '</div>' +
+      '<div class="line" style="white-space:pre-wrap">' + escapeHtml(tb.noiDung) + '</div>' +
+      '<div class="line muted">' + escapeHtml(tb.thoiGianTao) + (tb.phongBan ? ' · gửi ' + escapeHtml(tb.phongBan) : ' · toàn xưởng') +
+      (tb.hanHienThi ? ' · hạn ' + fmtDate(tb.hanHienThi) : '') + '</div>' +
+      (!tb.daDoc ? '<button class="btn small green" onclick="docTB(\'' + tb.thongBaoID + '\')">✅ Đánh dấu đã đọc</button>' : '') +
+      '</div>';
+  });
+  $('thongBaoBox').innerHTML = html || '<div class="alert blue">Chưa có thông báo nào.</div>';
+}
+
+async function docTB(id) {
+  const res = await api('markAnnouncementRead', { userID: user.userID, thongBaoID: id });
+  res.success ? toast(res.message) : alert(res.message);
+  loadThongBao();
+  loadThongBaoNgam(); // cập nhật badge
+}
+
+/* ---- V4 M7: màn Quản lý thông báo ---- */
+async function openTBQL() {
+  if (!options) await loadOptions();
+  fillSelect($('tbPhongBan'), options.phongBans, p => p, p => p, { value: '', label: 'Toàn xưởng' });
+  showScreen('scr-tbql', 'Quản lý thông báo');
+  loadTBQL();
+}
+
+async function loadTBQL() {
+  $('tbqlBox').innerHTML = '<div class="muted" style="margin-top:12px">Đang tải...</div>';
+  const res = await api('getAnnouncements', { userID: user.userID, xemTatCa: true });
+  if (!res.success) { $('tbqlBox').innerHTML = '<div class="alert red">' + escapeHtml(res.message) + '</div>'; return; }
+
+  const ds = res.data.danhSach || [];
+  let html = '<div class="section-title">Thông báo đang đăng (' + ds.length + ')</div>';
+  ds.forEach(tb => {
+    html += '<div class="card">' +
+      '<h3>' + (tb.quanTrong ? '❗ ' : '📢 ') + escapeHtml(tb.tieuDe) + '</h3>' +
+      '<div class="line" style="white-space:pre-wrap">' + escapeHtml(tb.noiDung) + '</div>' +
+      '<div class="line muted">' + escapeHtml(tb.thoiGianTao) + ' · ' + (tb.phongBan ? escapeHtml(tb.phongBan) : 'toàn xưởng') +
+      (tb.hanHienThi ? ' · hạn ' + fmtDate(tb.hanHienThi) : '') + '</div>' +
+      '<button class="btn red small" onclick="goTB(\'' + tb.thongBaoID + '\')">Gỡ thông báo</button>' +
+      '</div>';
+  });
+  $('tbqlBox').innerHTML = ds.length ? html : html + '<div class="alert blue">Chưa có thông báo nào.</div>';
+}
+
+async function taoTB() {
+  const res = await api('createAnnouncement', {
+    userID: user.userID,
+    tieuDe: $('tbTieuDe').value.trim(),
+    noiDung: $('tbNoiDung').value.trim(),
+    phongBan: $('tbPhongBan').value,
+    quanTrong: $('tbQuanTrong').checked,
+    hanHienThi: $('tbHan').value
+  });
+  res.success ? toast(res.message) : alert(res.message);
+  if (res.success) {
+    $('tbTieuDe').value = ''; $('tbNoiDung').value = ''; $('tbHan').value = ''; $('tbQuanTrong').checked = false;
+    loadTBQL();
+  }
+}
+
+async function goTB(id) {
+  if (!confirm('Gỡ thông báo này? (Không xóa dữ liệu, chỉ ẩn khỏi app)')) return;
+  const res = await api('deactivateAnnouncement', { userID: user.userID, thongBaoID: id });
+  res.success ? toast(res.message) : alert(res.message);
+  loadTBQL();
+}
+
+/* ---- V4 M1: màn Việc cần xử lý ---- */
+async function openPending() {
+  showScreen('scr-pending', 'Việc cần xử lý');
+  loadPending();
+}
+
+async function loadPending() {
+  $('pendingBox').innerHTML = '<div class="muted" style="margin-top:12px">Đang tải...</div>';
+  const res = await api('getPendingTasks', { userID: user.userID });
+  if (!res.success) { pendingData = null; $('pendingBox').innerHTML = '<div class="alert red">' + escapeHtml(res.message) + '</div>'; return; }
+  pendingData = res.data;
+
+  let html = pendingData.tongViec === 0
+    ? '<div class="alert green">🎉 Không có việc nào cần xử lý.</div>'
+    : '<div class="alert orange">Có <b>' + pendingData.tongViec + '</b> việc cần xử lý.</div>';
+
+  pendingData.muc.forEach(m => {
+    html += '<div class="card">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center">' +
+        '<h3>' + escapeHtml(m.ten) + '</h3>' +
+        '<span class="badge ' + (m.soLuong > 0 ? 'tu-choi' : 'da-duyet') + '">' + m.soLuong + '</span>' +
+      '</div>';
+    m.danhSach.forEach(d => { html += '<div class="line">• ' + escapeHtml(d) + '</div>'; });
+    if (m.soLuong > m.danhSach.length) html += '<div class="line muted">... và ' + (m.soLuong - m.danhSach.length) + ' mục nữa</div>';
+    if (m.soLuong > 0 && m.manHinh) {
+      html += '<button class="btn small" onclick="moPendingMan(\'' + m.manHinh + '\')">Mở màn xử lý →</button>';
+    }
+    html += '</div>';
+  });
+  html += '<button class="btn gray small" onclick="loadPending()">🔄 Tải lại</button>';
+  $('pendingBox').innerHTML = html;
+  loadPendingBadge(); // đồng bộ badge ở Home
+}
+
+function moPendingMan(manHinh) {
+  if (manHinh === 'duyet') openDuyet();
+  else if (manHinh === 'tangca') openTangCa();
+  else if (manHinh === 'bcngay') openBCNgay();
+  else if (manHinh === 'birthday') openBirthday();
+  else if (manHinh === 'thongbao') openThongBao();
+}
+
+/* ---- V4 M2+M3: màn Sinh nhật & thử việc ---- */
+async function openBirthday() {
+  showScreen('scr-birthday', 'Sinh nhật & thử việc');
+  loadBirthday();
+}
+
+let bdData = null;
+
+async function loadBirthday() {
+  $('birthdayBox').innerHTML = '<div class="muted" style="margin-top:12px">Đang tải...</div>';
+  // 2 API độc lập -> gọi song song; module nào tắt sẽ tự trả "Chức năng đang tắt."
+  const [resBD, resTV] = await Promise.all([
+    api('getBirthdays', { userID: user.userID }),
+    api('getProbationAlerts', { userID: user.userID })
+  ]);
+
+  let html = '';
+
+  // Sinh nhật
+  html += '<div class="section-title">🎂 Sinh nhật</div>';
+  if (!resBD.success) {
+    html += '<div class="alert blue">' + escapeHtml(resBD.message) + '</div>';
+    bdData = null;
+  } else {
+    bdData = resBD.data;
+    if (bdData.homNay.length) {
+      html += '<div class="card"><h3>Hôm nay 🎉</h3>';
+      bdData.homNay.forEach((x, i) => {
+        html += '<div class="line" style="display:flex;justify-content:space-between;align-items:center">' +
+          '<span><b>' + escapeHtml(x.hoTen) + '</b> (' + escapeHtml(x.phongBan) + ')</span>' +
+          '<button class="btn small purple" style="width:auto;margin:0;padding:6px 12px" onclick="copyChucMung(' + i + ')">📋 Copy lời chúc</button>' +
+          '</div>';
+      });
+      html += '</div>';
+    } else {
+      html += '<div class="alert blue">Hôm nay không có sinh nhật nào.</div>';
+    }
+    if (bdData.sapToi.length) {
+      html += '<div class="card"><h3>7 ngày tới</h3>';
+      bdData.sapToi.forEach(x => {
+        html += '<div class="line">' + escapeHtml(x.hoTen) + ' (' + escapeHtml(x.phongBan) + ') - ' + fmtDate(x.ngayMung) + ' (còn ' + x.conNgay + ' ngày)</div>';
+      });
+      html += '</div>';
+    }
+  }
+
+  // Thử việc
+  html += '<div class="section-title">📋 Hết thử việc</div>';
+  if (!resTV.success) {
+    html += '<div class="alert blue">' + escapeHtml(resTV.message) + '</div>';
+  } else {
+    const tv = resTV.data;
+    const nhom = [
+      ['⚠ QUÁ HẠN chưa xử lý', tv.quaHan, 'red'],
+      ['Hết thử việc HÔM NAY', tv.homNay, 'red'],
+      ['Còn 1-3 ngày', tv.con3Ngay, 'orange'],
+      ['Còn 4-7 ngày', tv.con7Ngay, 'blue']
+    ];
+    let coNguoi = false;
+    nhom.forEach(([ten, ds, mau]) => {
+      if (!ds.length) return;
+      coNguoi = true;
+      html += '<div class="alert ' + mau + '"><b>' + ten + ':</b><br>' +
+        ds.map(x => escapeHtml(x.hoTen) + ' (' + escapeHtml(x.phongBan) + ') - hết ' + fmtDate(x.ngayKetThuc)).join('<br>') +
+        '</div>';
+    });
+    if (!coNguoi) html += '<div class="alert blue">Không có ai sắp hết thử việc. (Nhập "Ngày hết thử việc" trong Quản lý nhân viên để theo dõi.)</div>';
+    html += '<p class="muted">Xử lý xong: cập nhật hồ sơ trong màn Quản lý nhân viên (xóa/đổi ngày hết thử việc).</p>';
+  }
+
+  $('birthdayBox').innerHTML = html;
+}
+
+function copyChucMung(i) {
+  if (!bdData || !bdData.homNay[i]) return;
+  const x = bdData.homNay[i];
+  const out = '🎂 CHÚC MỪNG SINH NHẬT!\n\n' +
+    'Chúc mừng sinh nhật ' + x.hoTen + ' (' + x.phongBan + ')! 🎉\n\n' +
+    'Cả xưởng chúc bạn tuổi mới thật nhiều sức khỏe, niềm vui và may mắn. ' +
+    'Cảm ơn bạn đã đồng hành cùng xưởng! 🥳';
+  copyText(out, 'lời chúc sinh nhật');
+}
+
+/* ---- V4: card bật/tắt module trong Cấu hình nhân sự ---- */
+async function loadModuleFlagsCard() {
+  if (!user.duocSuaCauHinh) { $('moduleFlagBox').innerHTML = ''; return; }
+  $('moduleFlagBox').innerHTML = '<div class="muted">Đang tải module...</div>';
+  const res = await apiSilent('getModuleConfig', { userID: user.userID });
+  if (!res.success || !res.data) { $('moduleFlagBox').innerHTML = ''; return; }
+
+  const moTa = { FALSE: 'Tắt', TEST: 'Chỉ quản lý thấy', TRUE: 'Bật toàn xưởng' };
+  const mau = { FALSE: 'da-huy', TEST: 'cho-duyet', TRUE: 'da-duyet' };
+  let html = '<div class="card"><h3>🧩 Module V4 (FALSE → TEST → TRUE)</h3>' +
+    '<p class="muted">TEST = chỉ chủ xưởng/quản lý thấy để kiểm thử trên production. Nhân viên thường không thấy.</p>';
+  res.data.forEach(m => {
+    const st = m.trangThai || 'FALSE';
+    html += '<div class="line" style="display:flex;justify-content:space-between;align-items:center;gap:8px">' +
+      '<span><b>' + escapeHtml(m.module) + '</b> <span class="badge ' + mau[st] + '">' + st + '</span> <span class="muted">' + moTa[st] + '</span></span>' +
+      '<button class="btn small" style="width:auto;margin:0;padding:6px 12px" onclick="doiModuleFlag(\'' + m.module + '\',\'' + st + '\')">Đổi</button>' +
+      '</div>';
+  });
+  html += '</div>';
+  $('moduleFlagBox').innerHTML = html;
+}
+
+async function doiModuleFlag(module, hienTai) {
+  const tiepTheo = { FALSE: 'TEST', TEST: 'TRUE', TRUE: 'FALSE' }[hienTai] || 'FALSE';
+  if (!confirm('Đổi module ' + module + ': ' + hienTai + ' → ' + tiepTheo + '?')) return;
+  const res = await api('updateModuleConfig', { userID: user.userID, module: module, enable: tiepTheo });
+  res.success ? toast(res.message) : alert(res.message);
+  loadModuleFlagsCard();
+  loadV4HomeExtras(); // cập nhật lại menu Home ngay
 }
 
 /* ================== KHỞI ĐỘNG ================== */
