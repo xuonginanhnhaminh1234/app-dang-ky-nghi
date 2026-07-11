@@ -654,7 +654,13 @@ let options = null;   // getLeaveOptions cache
 /* ================== TIỆN ÍCH ================== */
 function $(id) { return document.getElementById(id); }
 
-function showLoading(on) { $('loading').style.display = on ? 'flex' : 'none'; }
+// V3.3.3: đếm số request đang chạy để overlay không tắt sớm khi gọi song song (Promise.all)
+let soDangTai = 0;
+function showLoading(on) {
+  soDangTai += on ? 1 : -1;
+  if (soDangTai < 0) soDangTai = 0;
+  $('loading').style.display = soDangTai > 0 ? 'flex' : 'none';
+}
 
 function toast(msg) {
   const t = $('toast');
@@ -763,15 +769,16 @@ async function doLogin() {
   $('loginErr').classList.add('hidden');
   if (!pin) { toast('Vui lòng nhập mã PIN.'); return; }
 
-  const res = await api('login', { pin: pin });
+  // V3.3.3: loginFull = login + options trong 1 lượt gọi
+  const res = await api('loginFull', { pin: pin });
   if (!res.success) {
     $('loginErr').textContent = res.message;
     $('loginErr').classList.remove('hidden');
     return;
   }
-  user = res.data;
+  user = res.data.user;
+  options = res.data.options;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
-  await loadOptions();
   renderHome();
 }
 
@@ -1522,8 +1529,15 @@ async function saveSlotConfig() {
 }
 
 async function loadSlotLists() {
+  // V3.3.3: 4 API độc lập -> gọi song song bằng Promise.all
+  const [resSlot, resDef, resMin, resCfg] = await Promise.all([
+    api('getSlotConfig', { userID: user.userID, filters: { tuNgay: todayStr() } }),
+    api('getDefaultSlotConfig', { userID: user.userID }),
+    api('getMinimumStaffConfig', { userID: user.userID }),
+    api('getGeneralConfig', { userID: user.userID })
+  ]);
+
   // 1. Slot riêng theo ngày
-  const resSlot = await api('getSlotConfig', { userID: user.userID, filters: { tuNgay: todayStr() } });
   let html = '<div class="card"><h3>Slot riêng đã cấu hình (từ hôm nay)</h3>';
   if (resSlot.success && resSlot.data.length) {
     resSlot.data.forEach(r => {
@@ -1537,7 +1551,6 @@ async function loadSlotLists() {
   $('slotListBox').innerHTML = html;
 
   // 2. Slot mặc định
-  const resDef = await api('getDefaultSlotConfig', { userID: user.userID });
   let h2 = '<div class="card"><h3>Slot mặc định</h3>';
   if (resDef.success) {
     resDef.data.forEach(r => {
@@ -1551,7 +1564,6 @@ async function loadSlotLists() {
   $('slotDefaultBox').innerHTML = h2;
 
   // 3. Nhân sự tối thiểu
-  const resMin = await api('getMinimumStaffConfig', { userID: user.userID });
   let h3 = '<div class="card"><h3>Nhân sự tối thiểu (người đi làm)</h3>';
   if (resMin.success) {
     resMin.data.forEach(r => {
@@ -1565,7 +1577,6 @@ async function loadSlotLists() {
   $('minStaffBox').innerHTML = h3;
 
   // 4. Cấu hình chung
-  const resCfg = await api('getGeneralConfig', { userID: user.userID });
   let h4 = '<div class="card"><h3>Cấu hình chung</h3>';
   if (resCfg.success) {
     resCfg.data.forEach(r => {
@@ -2648,11 +2659,12 @@ async function suaCauHinhNS(key, hienTai) {
   try { user = JSON.parse(saved); } catch (e) { logout(); return; }
 
   // Làm mới thông tin user (phòng khi bị đổi quyền / khóa tài khoản)
-  const res = await api('refreshUser', { userID: user.userID });
+  // V3.3.3: refreshFull = refreshUser + options trong 1 lượt gọi
+  const res = await api('refreshFull', { userID: user.userID });
   if (res.success) {
-    user = res.data;
+    user = res.data.user;
+    options = res.data.options;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
-    await loadOptions();
     renderHome();
   } else {
     logout();
