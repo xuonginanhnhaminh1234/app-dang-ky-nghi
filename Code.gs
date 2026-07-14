@@ -16,7 +16,7 @@
 // Phiên bản backend - mở link /exec trên trình duyệt sẽ thấy số này.
 // Nếu app báo "Không nhận diện được action" với action mới, mở /exec kiểm tra:
 // thấy version cũ nghĩa là chưa Deploy New Version sau khi dán code.
-var APP_VERSION = 'V3.3';
+var APP_VERSION = 'V5.0-RC2';
 
 var TIMEZONE = 'Asia/Ho_Chi_Minh';
 
@@ -44,7 +44,27 @@ var TEN_SHEET = {
   // V3.2: giờ làm theo phòng ban
   CAU_HINH_CA_PHONG_BAN: 'CAU_HINH_CA_PHONG_BAN',
   // V3.3: vị trí chấm công GPS
-  CAU_HINH_DIA_DIEM_CHAM_CONG: 'CAU_HINH_DIA_DIEM_CHAM_CONG'
+  CAU_HINH_DIA_DIEM_CHAM_CONG: 'CAU_HINH_DIA_DIEM_CHAM_CONG',
+  // V4.0: các module mới (tạo bằng setupSheetsV4, KHÔNG dùng setupSheets cũ)
+  CAU_HINH_MODULE: 'CAU_HINH_MODULE',
+  DOI_CA: 'DOI_CA',
+  VE_SOM: 'VE_SOM',
+  THONG_BAO: 'THONG_BAO',
+  THONG_BAO_DA_DOC: 'THONG_BAO_DA_DOC',
+  CHOT_KY: 'CHOT_KY',
+  BANG_LUONG: 'BANG_LUONG',
+  // V5.0 Production (tạo bằng setupSheetsV5)
+  // (V5.0-RC2: NGOAI_LE_GPS đã GỠ theo quyết định 13/07/2026 - GPS chỉ còn fail-closed đơn giản,
+  //  trường hợp đặc biệt PM sửa công tay có audit)
+  KPI_NGAY: 'KPI_NGAY',
+  CAU_HINH_KPI: 'CAU_HINH_KPI',
+  CHAM_CONG_EVENT: 'CHAM_CONG_EVENT',
+  DIEU_CHINH_CONG: 'DIEU_CHINH_CONG',
+  LICH_SU_LUONG: 'LICH_SU_LUONG',
+  QUYET_DINH_NHAN_SU: 'QUYET_DINH_NHAN_SU',
+  CAU_HINH_CONG_CHUAN: 'CAU_HINH_CONG_CHUAN',
+  // RC2 fix: RC1 thiếu khai báo key này -> sheet phiên PM bị tạo tên "undefined"
+  PHIEN_XU_LY_PM: 'PHIEN_XU_LY_PM'
 };
 
 var TRANG_THAI = {
@@ -106,12 +126,16 @@ function doPost(e) {
 
   var action = req.action || '';
   var data = req.data || {};
+  var batDau = Date.now(); // V3.3.3: đo thời gian xử lý từng action
 
   try {
     switch (action) {
       // ----- Auth -----
       case 'login':                    return jsonOut(loginUser(data.pin));
       case 'refreshUser':              return jsonOut(refreshUser(data.userID));
+      // V3.3.3: gộp login/refresh + options thành 1 lượt gọi (API cũ vẫn giữ nguyên)
+      case 'loginFull':                return jsonOut(loginFull(data.pin));
+      case 'refreshFull':              return jsonOut(refreshFull(data.userID));
 
       // ----- Nhân viên -----
       case 'getLeaveOptions':          return jsonOut(getLeaveOptions(data.userID));
@@ -178,6 +202,80 @@ function doPost(e) {
       case 'updateAttendanceLocationConfig': return jsonOut(updateAttendanceLocationConfig(data));
       case 'setCurrentLocationAsWorkshop':   return jsonOut(setCurrentLocationAsWorkshop(data));
 
+      // ----- V5.0 P1: KPI + Dashboard PM + Chốt ngày -----
+      case 'getKPIToday':      return jsonOut(getKPIToday(data.userID, data.ngay));
+      case 'updateKPI':        return jsonOut(updateKPI(data));
+      case 'getKPIConfig':     return jsonOut(getKPIConfig(data.userID));
+      case 'updateKPIConfig':  return jsonOut(updateKPIConfig(data));
+      case 'getPMDashboard':   return jsonOut(getPMDashboard(data.userID));
+      case 'chotNgay':         return jsonOut(chotNgay(data));
+
+      // ----- V5.0 P1: Đổi ca theo ngày -----
+      case 'submitShiftChange':   return jsonOut(submitShiftChange(data));
+      case 'getMyShiftChanges':   return jsonOut(getMyShiftChanges(data.userID));
+      case 'getAllShiftChanges':  return jsonOut(getAllShiftChanges(data.userID, data.filters || {}));
+      case 'approveShiftChange':  return jsonOut(approveShiftChange(data));
+      case 'rejectShiftChange':   return jsonOut(rejectShiftChange(data));
+      case 'cancelMyShiftChange': return jsonOut(cancelMyShiftChange(data));
+
+      // ----- V5.0 P1: Xin về sớm -----
+      case 'submitEarlyLeave':   return jsonOut(submitEarlyLeave(data));
+      case 'getMyEarlyLeaves':   return jsonOut(getMyEarlyLeaves(data.userID));
+      case 'getAllEarlyLeaves':  return jsonOut(getAllEarlyLeaves(data.userID, data.filters || {}));
+      case 'approveEarlyLeave':  return jsonOut(approveEarlyLeave(data));
+      case 'rejectEarlyLeave':   return jsonOut(rejectEarlyLeave(data));
+      case 'cancelMyEarlyLeave': return jsonOut(cancelMyEarlyLeave(data));
+
+      // ----- V5.0 P1: Nhân viên tự đăng ký tăng ca -----
+      case 'submitOvertimeRequest': return jsonOut(submitOvertimeRequest(data));
+      case 'cancelMyOvertime':      return jsonOut(cancelMyOvertime(data));
+
+      // ----- V5.0 P2: Phiếu điều chỉnh công 2 cấp -----
+      case 'createAdjustment':  return jsonOut(createAdjustment(data));
+      case 'getAdjustments':    return jsonOut(getAdjustments(data.userID, data.filters || {}));
+      case 'approveAdjustment': return jsonOut(approveAdjustment(data));
+      case 'rejectAdjustment':  return jsonOut(rejectAdjustment(data));
+      case 'voidAdjustment':    return jsonOut(voidAdjustment(data));
+
+      // ----- V5.0 P3: Lương & quyết định nhân sự -----
+      case 'createDecision':    return jsonOut(createDecision(data));
+      case 'getDecisions':      return jsonOut(getDecisions(data.userID, data.filters || {}));
+      case 'approveDecision':   return jsonOut(approveDecision(data));
+      case 'rejectDecision':    return jsonOut(rejectDecision(data));
+      case 'getSalaryHistory':  return jsonOut(getSalaryHistory(data.userID, data.targetUserID));
+      case 'getPayrollV5':      return jsonOut(getPayrollV5(data.userID, data.month, data.year, data.filters || {}));
+
+      // ----- V5.0 P4: Chốt công/lương + ký nhận + dashboard chủ -----
+      case 'lockPeriod':             return jsonOut(lockPeriod(data));
+      case 'unlockPeriod':           return jsonOut(unlockPeriod(data));
+      case 'getLockStatus':          return jsonOut(getLockStatus(data.userID, data.month, data.year));
+      case 'lockPayroll':            return jsonOut(lockPayroll(data));
+      case 'getLockedPayroll':       return jsonOut(getLockedPayroll(data.userID, data.month, data.year));
+      case 'exportPayrollTSV':       return jsonOut(exportPayrollTSV(data.userID, data.month, data.year));
+      case 'getMyPayslip':           return jsonOut(getMyPayslip(data.userID, data.month, data.year));
+      case 'confirmSalaryReceived':  return jsonOut(confirmSalaryReceived(data));
+      case 'getOwnerDashboard':      return jsonOut(getOwnerDashboard(data.userID));
+
+      // (V5.0-RC2: 6 API ngoại lệ GPS của V4.0.2 đã GỠ - GPS chỉ còn fail-closed đơn giản.
+      //  Trường hợp đặc biệt: PM sửa công tay qua updateAttendanceByManager/createAdjustment - có audit.)
+
+      // ----- V4.0 Đợt 1: Feature flags -----
+      case 'getModuleConfig':    return jsonOut(getModuleConfig(data.userID));
+      case 'updateModuleConfig': return jsonOut(updateModuleConfig(data));
+
+      // ----- V4.0 Đợt 1: Trung tâm việc cần xử lý -----
+      case 'getPendingTasks': return jsonOut(getPendingTasks(data.userID));
+
+      // ----- V4.0 Đợt 1: Sinh nhật & hết thử việc -----
+      case 'getBirthdays':       return jsonOut(getBirthdays(data.userID));
+      case 'getProbationAlerts': return jsonOut(getProbationAlerts(data.userID));
+
+      // ----- V4.0 Đợt 1: Thông báo nội bộ -----
+      case 'createAnnouncement':     return jsonOut(createAnnouncement(data));
+      case 'getAnnouncements':       return jsonOut(getAnnouncements(data.userID, data.xemTatCa === true));
+      case 'markAnnouncementRead':   return jsonOut(markAnnouncementRead(data));
+      case 'deactivateAnnouncement': return jsonOut(deactivateAnnouncement(data));
+
       // ----- V3: Tạm ứng -----
       case 'submitAdvance':    return jsonOut(submitAdvance(data));
       case 'getMyAdvances':    return jsonOut(getMyAdvances(data.userID));
@@ -213,6 +311,10 @@ function doPost(e) {
     }
   } catch (err) {
     return jsonOut({ success: false, message: 'Lỗi hệ thống: ' + err.message });
+  } finally {
+    // V3.3.3: log hiệu năng - xem trong Apps Script > Executions (hoặc Cloud Logs)
+    // để biết action nào chậm. finally chạy cả khi đã return trong switch.
+    console.log('[PERF] action=' + action + ' ms=' + (Date.now() - batDau));
   }
 }
 
@@ -473,25 +575,131 @@ function getSheet_(name) {
   return sh;
 }
 
+// ================== V3.3.3: CACHE 2 TẦNG KHI ĐỌC SHEET ==================
+// Tầng 1: memo trong CÙNG 1 request (mỗi sheet chỉ đọc 1 lần dù hàm nào gọi lại).
+// Tầng 2: CacheService cho các sheet ÍT THAY ĐỔI (danh sách bên dưới),
+//         TTL 5 phút; mọi lần app GHI vào sheet đều tự xóa cache nên dữ liệu
+//         sửa QUA APP luôn mới. Sửa tay trực tiếp trên Google Sheet thì có thể
+//         trễ tối đa 5 phút.
+// Sheet giao dịch (LICH_NGHI, CHAM_CONG, TAM_UNG...) KHÔNG cache tầng 2.
+
+var _memoSheetData = {}; // memo theo từng lần chạy (Apps Script mỗi request 1 process)
+
+var SHEETS_CO_CACHE = {
+  USERS: 1,
+  NHAN_VIEN: 1,
+  CA_LAM: 1,
+  CAU_HINH_CA_PHONG_BAN: 1,
+  CAU_HINH_DIA_DIEM_CHAM_CONG: 1,
+  CAU_HINH_CHUNG: 1,
+  CAU_HINH_CHAM_CONG: 1,
+  CAU_HINH_MAC_DINH: 1,
+  NHAN_SU_TOI_THIEU: 1,
+  QUYEN_NHAN_SU: 1,
+  // V4.0
+  CAU_HINH_MODULE: 1,
+  THONG_BAO: 1,
+  // V5.0 (đổi qua app tự xóa cache; KPI_NGAY/QUYET_DINH/DIEU_CHINH là dữ liệu giao dịch -> KHÔNG cache)
+  CAU_HINH_KPI: 1,
+  CAU_HINH_CONG_CHUAN: 1,
+  LICH_SU_LUONG: 1
+};
+var CACHE_TTL_GIAY = 300;
+
 /**
- * Đọc toàn bộ sheet thành mảng object theo header dòng 1.
- * Mỗi object có thêm _row = số dòng thật trên sheet (để cập nhật trực tiếp).
+ * Chuẩn hóa 1 ô về kiểu chuỗi/số an toàn để so sánh và cache JSON.
+ * Ô kiểu Date của Sheets -> chuỗi ('yyyy-MM-dd', 'HH:mm' hoặc 'yyyy-MM-dd HH:mm:ss').
+ */
+function cellToStr_(v) {
+  if (Object.prototype.toString.call(v) === '[object Date]') {
+    if (v.getFullYear() < 1902) return Utilities.formatDate(v, TIMEZONE, 'HH:mm'); // ô kiểu giờ
+    if (Utilities.formatDate(v, TIMEZONE, 'HH:mm:ss') === '00:00:00') {
+      return Utilities.formatDate(v, TIMEZONE, 'yyyy-MM-dd'); // ô kiểu ngày
+    }
+    return Utilities.formatDate(v, TIMEZONE, 'yyyy-MM-dd HH:mm:ss');
+  }
+  return v;
+}
+
+/**
+ * Đọc toàn bộ sheet thành mảng object theo header dòng 1 (có cache 2 tầng).
  */
 function getSheetData(sheetName) {
+  // Tầng 1: memo trong request
+  if (_memoSheetData[sheetName]) return _memoSheetData[sheetName];
+
+  // Tầng 2: CacheService cho sheet ít đổi
+  var dungCache = SHEETS_CO_CACHE[sheetName] === 1;
+  if (dungCache) {
+    try {
+      var cached = CacheService.getScriptCache().get('sheet_' + sheetName);
+      if (cached) {
+        var rows = JSON.parse(cached);
+        _memoSheetData[sheetName] = rows;
+        return rows;
+      }
+    } catch (e) { /* cache lỗi -> đọc sheet thật */ }
+  }
+
+  // Đọc sheet thật
   var sh = getSheet_(sheetName);
   var values = sh.getDataRange().getValues();
-  if (values.length < 2) return [];
-  var headers = values[0];
   var out = [];
-  for (var i = 1; i < values.length; i++) {
-    var row = {};
-    for (var j = 0; j < headers.length; j++) {
-      row[headers[j]] = values[i][j];
+  if (values.length >= 2) {
+    var headers = values[0];
+    for (var i = 1; i < values.length; i++) {
+      var row = {};
+      for (var j = 0; j < headers.length; j++) {
+        row[headers[j]] = cellToStr_(values[i][j]);
+      }
+      out.push(row);
     }
-    row._row = i + 1;
-    out.push(row);
+  }
+
+  _memoSheetData[sheetName] = out;
+  if (dungCache) {
+    try {
+      var json = JSON.stringify(out);
+      if (json.length < 95000) { // CacheService giới hạn ~100KB/key
+        CacheService.getScriptCache().put('sheet_' + sheetName, json, CACHE_TTL_GIAY);
+      }
+    } catch (e) { /* không cache được thì thôi */ }
   }
   return out;
+}
+
+/** Xóa cache 1 sheet (gọi sau MỌI lần ghi để không trả dữ liệu cũ). */
+function invalidateSheetCache_(sheetName) {
+  delete _memoSheetData[sheetName];
+  try {
+    CacheService.getScriptCache().remove('sheet_' + sheetName);
+  } catch (e) { /* bỏ qua */ }
+}
+
+/**
+ * V3.3.3: đọc tối đa maxRows dòng CUỐI của sheet - dùng cho sheet lịch sử lớn
+ * (CHAM_CONG_HISTORY, LEAVE_HISTORY) thay vì getDataRange toàn sheet.
+ */
+function getSheetDataTail_(sheetName, maxRows) {
+  try {
+    var sh = getSheet_(sheetName);
+    var lastRow = sh.getLastRow(), lastCol = sh.getLastColumn();
+    if (lastRow < 2 || lastCol < 1) return [];
+    var headers = sh.getRange(1, 1, 1, lastCol).getValues()[0];
+    var soDong = Math.min(maxRows, lastRow - 1);
+    var values = sh.getRange(lastRow - soDong + 1, 1, soDong, lastCol).getValues();
+    var out = [];
+    for (var i = 0; i < values.length; i++) {
+      var row = {};
+      for (var j = 0; j < headers.length; j++) {
+        row[headers[j]] = cellToStr_(values[i][j]);
+      }
+      out.push(row);
+    }
+    return out;
+  } catch (e) {
+    return [];
+  }
 }
 
 /**
@@ -504,6 +712,7 @@ function appendRow(sheetName, data) {
     return (data[h] !== undefined && data[h] !== null) ? data[h] : '';
   });
   sh.appendRow(row);
+  invalidateSheetCache_(sheetName); // V3.3.3: ghi xong xóa cache
 }
 
 /**
@@ -523,6 +732,7 @@ function updateRowById(sheetName, idColumn, idValue, updateData) {
         var c = headers.indexOf(key);
         if (c >= 0) sh.getRange(i + 1, c + 1).setValue(updateData[key]);
       }
+      invalidateSheetCache_(sheetName); // V3.3.3: ghi xong xóa cache
       return true;
     }
   }
@@ -1013,7 +1223,14 @@ function buildLeavePayload_(lv) {
 function getLeaveOptions(userID) {
   var u = checkUserActive(userID);
   if (!u) return { success: false, message: 'Tài khoản không hợp lệ.' };
+  return { success: true, message: 'OK', data: buildLeaveOptionsCore_(u) };
+}
 
+/**
+ * V3.3.3: lõi dựng options - tách riêng để loginFull/refreshFull dùng chung
+ * (gộp login + getLeaveOptions thành 1 lượt gọi).
+ */
+function buildLeaveOptionsCore_(u) {
   var caLam = getSheetData(TEN_SHEET.CA_LAM)
     .filter(function (c) { return isActive_(c.TrangThai); })
     .map(function (c) {
@@ -1062,7 +1279,39 @@ function getLeaveOptions(userID) {
       });
   }
 
-  return { success: true, message: 'OK', data: result };
+  return result;
+}
+
+/**
+ * V3.3.3: đăng nhập + options trong 1 lượt gọi (đỡ 1 round-trip lúc mở app).
+ * API 'login' và 'getLeaveOptions' cũ vẫn giữ nguyên để tương thích.
+ */
+function loginFull(pin) {
+  if (!normalizeStr_(pin)) {
+    return { success: false, message: 'Vui lòng nhập mã PIN.' };
+  }
+  var u = getUserByPin(pin);
+  if (!u) {
+    return { success: false, message: 'Mã PIN không đúng hoặc tài khoản đã bị khóa.' };
+  }
+  return {
+    success: true,
+    message: 'Đăng nhập thành công.',
+    data: { user: buildUserPayload_(u), options: buildLeaveOptionsCore_(u) }
+  };
+}
+
+/** V3.3.3: làm mới user + options trong 1 lượt gọi (dùng khi mở lại app). */
+function refreshFull(userID) {
+  var u = checkUserActive(userID);
+  if (!u) {
+    return { success: false, message: 'Tài khoản không tồn tại hoặc đã bị khóa.' };
+  }
+  return {
+    success: true,
+    message: 'OK',
+    data: { user: buildUserPayload_(u), options: buildLeaveOptionsCore_(u) }
+  };
 }
 
 // ================== NHÂN VIÊN: SUBMIT LEAVE ==================
@@ -1342,6 +1591,8 @@ function approveLeave(data) {
     var phongBan = normalizeStr_(lv.PhongBan);
     var caNghi = normalizeStr_(lv.CaNghi);
 
+    var chanKhoa = checkKyKhoa_('CONG', ngayNghi); if (chanKhoa) return chanKhoa; // V5 P4
+
     // Kiểm tra slot lần nữa (loại chính đơn này ra khỏi count rồi so < limit)
     var slot = checkSlotAvailable(ngayNghi, phongBan, caNghi, normalizeStr_(lv.LeaveID));
     if (!slot.available) {
@@ -1475,6 +1726,7 @@ function approveOverSlot(data) {
     var ngayNghi = normalizeDate_(lv.NgayNghi);
     var phongBan = normalizeStr_(lv.PhongBan);
     var caNghi = normalizeStr_(lv.CaNghi);
+    var chanKhoa = checkKyKhoa_('CONG', ngayNghi); if (chanKhoa) return chanKhoa; // V5 P4
     var canhBao = checkMinimumStaffWarning(ngayNghi, phongBan, caNghi, 0);
 
     var update = {
@@ -1526,6 +1778,7 @@ function createLeaveForEmployee(data) {
     var lyDo = normalizeStr_(data.lyDo);
 
     if (!isValidDateStr_(ngayNghi)) return { success: false, message: 'Ngày nghỉ không hợp lệ.' };
+    var chanKhoa = checkKyKhoa_('CONG', ngayNghi); if (chanKhoa) return chanKhoa; // V5 P4
     if (CA_HOP_LE.indexOf(caNghi) < 0) return { success: false, message: 'Ca nghỉ không hợp lệ.' };
     if (DS_LOAI_NGHI.indexOf(loaiNghi) < 0) return { success: false, message: 'Loại nghỉ không hợp lệ.' };
     if (!lyDo) return { success: false, message: 'Vui lòng nhập lý do nghỉ.' };
@@ -1961,6 +2214,7 @@ function updateSlotConfig(data) {
         if (cGC >= 0) sh.getRange(i + 1, cGC + 1).setValue(normalizeStr_(data.ghiChu));
         if (cCap >= 0) sh.getRange(i + 1, cCap + 1).setValue(nowStr_());
         if (cNg >= 0) sh.getRange(i + 1, cNg + 1).setValue(normalizeStr_(u.UserID));
+        invalidateSheetCache_(TEN_SHEET.CAU_HINH_SLOT);
         return { success: true, message: 'Đã cập nhật slot ' + phongBan + ' ca ' + caNghi + ' ngày ' + ngay + ' = ' + soLuong + '.' };
       }
     }
@@ -2014,6 +2268,7 @@ function updateDefaultSlotConfig(data) {
   for (var i = 1; i < values.length; i++) {
     if (normalizeStr_(values[i][cPB]) === phongBan && normalizeStr_(values[i][cCa]) === caNghi) {
       sh.getRange(i + 1, cSL + 1).setValue(String(soLuong));
+      invalidateSheetCache_(TEN_SHEET.CAU_HINH_MAC_DINH);
       return { success: true, message: 'Đã cập nhật slot mặc định ' + phongBan + ' ca ' + caNghi + ' = ' + soLuong + '.' };
     }
   }
@@ -2082,6 +2337,7 @@ function unlockDate(data) {
     soDong++;
   }
 
+  if (soDong > 0) invalidateSheetCache_(TEN_SHEET.NGAY_KHOA);
   if (soDong === 0) return { success: false, message: 'Không tìm thấy khóa đang hiệu lực khớp thông tin.' };
   return { success: true, message: 'Đã mở khóa ' + (phongBan || 'toàn xưởng') + ' ' + (caNghi ? 'ca ' + caNghi : 'cả ngày') + ' ngày ' + ngay + '.' };
 }
@@ -2173,6 +2429,7 @@ function updateMinimumStaffConfig(data) {
   for (var i = 1; i < values.length; i++) {
     if (normalizeStr_(values[i][cPB]) === phongBan && normalizeStr_(values[i][cCa]) === caNghi) {
       sh.getRange(i + 1, cSN + 1).setValue(String(soNguoi));
+      invalidateSheetCache_(TEN_SHEET.NHAN_SU_TOI_THIEU);
       return { success: true, message: 'Đã cập nhật nhân sự tối thiểu ' + phongBan + ' ca ' + caNghi + ' = ' + soNguoi + '.' };
     }
   }
@@ -2208,6 +2465,7 @@ var CC_MAC_DINH = {
   LamTronGioCong: '0.25',
   ChoPhepNhanVienChamCong: 'TRUE',
   YeuCauGhiChuKhiSuaCong: 'TRUE'
+  // (V5.0-RC2: CheDoGPSKhanCap đã gỡ cùng lớp ngoại lệ GPS - GPS chỉ còn fail-closed đơn giản)
 };
 
 // ================== V3: HELPER THỜI GIAN & CẤU HÌNH ==================
@@ -2555,7 +2813,9 @@ function updateDepartmentShiftConfig(data) {
         break;
       }
     }
-    if (!daCo) {
+    if (daCo) {
+      invalidateSheetCache_(TEN_SHEET.CAU_HINH_CA_PHONG_BAN);
+    } else {
       update.PhongBan = phongBan;
       update.CaLam = caLam;
       appendRow(TEN_SHEET.CAU_HINH_CA_PHONG_BAN, update);
@@ -2616,11 +2876,44 @@ function calculateDistanceMeters_(lat1, lng1, lat2, lng2) {
 }
 
 /**
- * Kiểm tra vị trí chấm công. Trả về:
- * { ok, message, canhBao, viDo, kinhDo, doChinhXac, khoangCach }
- * - Chưa có địa điểm Active nào -> coi như tính năng GPS chưa bật, cho chấm như cũ.
- * - BatBuocGPS = TRUE -> bắt buộc có tọa độ + xưởng phải đã cấu hình tọa độ.
- * - Ngoài bán kính: chặn, trừ khi ChoPhepChamCongNgoaiViTri = TRUE (cho chấm + ghi cảnh báo).
+ * V4.0.2: Lấy địa điểm chấm công HỢP LỆ đầu tiên (fail-closed theo mục 8):
+ * Active + ViDo/KinhDo parse được và trong miền (±90/±180) + BanKinhMet > 0 + BatBuocGPS = TRUE.
+ * Trả { diaDiem } hoặc { loi: 'CHUA_CAU_HINH' | 'DU_LIEU_SAI' }.
+ */
+function getValidAttendanceLocation_() {
+  var rows = getSheetDataSafe_(TEN_SHEET.CAU_HINH_DIA_DIEM_CHAM_CONG);
+  var coDongActive = false;
+  for (var i = 0; i < rows.length; i++) {
+    if (!isActive_(rows[i].TrangThai)) continue;
+    coDongActive = true;
+    var viDo = parseFloat(normalizeStr_(rows[i].ViDo).replace(',', '.'));
+    var kinhDo = parseFloat(normalizeStr_(rows[i].KinhDo).replace(',', '.'));
+    var banKinh = Number(rows[i].BanKinhMet);
+    if (isNaN(viDo) || Math.abs(viDo) > 90) continue;
+    if (isNaN(kinhDo) || Math.abs(kinhDo) > 180) continue;
+    if (isNaN(banKinh) || banKinh <= 0) continue;
+    if (!isTrue_(rows[i].BatBuocGPS)) continue; // mục 8: dòng hợp lệ phải BatBuocGPS=TRUE
+    return {
+      diaDiem: {
+        diaDiemID: normalizeStr_(rows[i].DiaDiemID),
+        tenDiaDiem: normalizeStr_(rows[i].TenDiaDiem),
+        viDo: viDo, kinhDo: kinhDo, banKinhMet: banKinh
+      }
+    };
+  }
+  return { loi: coDongActive ? 'DU_LIEU_SAI' : 'CHUA_CAU_HINH' };
+}
+
+/**
+ * V5.0-RC2: Kiểm tra vị trí chấm công - FAIL-CLOSED ĐƠN GIẢN (quyết định 13/07/2026).
+ * Trả { ok, message, canhBao, viDo, kinhDo, doChinhXac, khoangCach }.
+ * Quy tắc A-D, không có ngoại lệ:
+ *   A. Không có địa điểm Active hợp lệ -> TỪ CHỐI.
+ *   B. Không có GPS client -> TỪ CHỐI.
+ *   C. Accuracy vượt ngưỡng -> TỪ CHỐI.
+ *   D. Ngoài bán kính -> TỪ CHỐI. Trong bán kính -> CHO PHÉP.
+ * Trường hợp đặc biệt: PM sửa công tay (có audit). Không có fallback fail-open;
+ * ChoPhepChamCongNgoaiViTri ngưng hiệu lực từ V4.0.2.
  */
 function validateAttendanceLocation_(latitude, longitude, accuracy) {
   var kq = { ok: true, message: '', canhBao: '', viDo: '', kinhDo: '', doChinhXac: '', khoangCach: '' };
@@ -2634,42 +2927,53 @@ function validateAttendanceLocation_(latitude, longitude, accuracy) {
     if (!isNaN(acc) && acc >= 0) kq.doChinhXac = String(acc);
   }
 
-  var dd = getActiveAttendanceLocation_();
-  if (!dd) return kq; // tính năng GPS chưa bật -> vẫn lưu tọa độ nếu có
+  var vi = getValidAttendanceLocation_();
 
-  if (dd.batBuocGPS) {
-    if (!coGPS) {
-      kq.ok = false;
-      kq.message = 'Không có thông tin vị trí. Vui lòng bật định vị GPS, cho phép trình duyệt truy cập vị trí rồi thử lại.';
-      return kq;
-    }
-    if (dd.viDo === null || dd.kinhDo === null) {
-      kq.ok = false;
-      kq.message = 'Chưa cấu hình vị trí xưởng, vui lòng quản lý thiết lập trước.';
-      return kq;
-    }
+  // Tính khoảng cách nếu đủ dữ liệu 2 phía
+  if (coGPS && vi.diaDiem) {
+    kq.khoangCach = String(Math.round(calculateDistanceMeters_(lat, lng, vi.diaDiem.viDo, vi.diaDiem.kinhDo)));
   }
 
-  // Không đủ dữ liệu 2 phía để so khoảng cách -> bỏ qua bước so
-  if (!coGPS || dd.viDo === null || dd.kinhDo === null) return kq;
-
-  if (!isNaN(acc) && acc > NGUONG_DO_CHINH_XAC_MET) {
+  // A. Địa điểm
+  if (vi.loi === 'CHUA_CAU_HINH') {
     kq.ok = false;
-    kq.message = 'Định vị không đủ chính xác (sai số ±' + acc + 'm). Vui lòng đứng nơi thoáng hơn hoặc bật GPS rồi thử lại.';
+    kq.message = 'Chưa cấu hình địa điểm chấm công. Liên hệ quản lý thiết lập trước khi chấm.';
+    return kq;
+  }
+  if (vi.loi === 'DU_LIEU_SAI') {
+    kq.ok = false;
+    kq.message = 'Cấu hình địa điểm chấm công không hợp lệ (vĩ độ/kinh độ/bán kính). Liên hệ quản lý kiểm tra lại.';
     return kq;
   }
 
-  var kc = Math.round(calculateDistanceMeters_(lat, lng, dd.viDo, dd.kinhDo));
-  kq.khoangCach = String(kc);
-
-  if (kc > dd.banKinhMet) {
-    if (dd.choPhepNgoaiViTri) {
-      kq.canhBao = 'Chấm công ngoài vị trí cho phép: cách xưởng ' + kc + 'm';
-    } else {
-      kq.ok = false;
-      kq.message = 'Bạn đang ở cách xưởng ' + kc + 'm, vượt quá bán kính cho phép ' + dd.banKinhMet + 'm. Không thể chấm công.';
-    }
+  // B. GPS client
+  if (!coGPS) {
+    kq.ok = false;
+    kq.message = 'Không lấy được vị trí. Vui lòng bật định vị và thử lại.';
+    return kq;
   }
+
+  // C. Độ chính xác
+  if (!isNaN(acc) && acc > NGUONG_DO_CHINH_XAC_MET) {
+    kq.ok = false;
+    kq.message = 'Độ chính xác vị trí chưa đạt yêu cầu (sai số ±' + acc + 'm). Vui lòng ra chỗ thoáng và thử lại.';
+    return kq;
+  }
+
+  // D. Bán kính
+  var kc = Number(kq.khoangCach);
+  if (isNaN(kc)) {
+    // Có GPS + địa điểm hợp lệ thì luôn tính được; nhánh này chỉ để phòng thủ
+    kq.ok = false;
+    kq.message = 'Không xác định được khoảng cách đến xưởng. Vui lòng thử lại.';
+    return kq;
+  }
+  if (kc > vi.diaDiem.banKinhMet) {
+    kq.ok = false;
+    kq.message = 'Bạn đang ngoài khu vực chấm công (cách xưởng ' + kc + 'm, bán kính cho phép ' + vi.diaDiem.banKinhMet + 'm).';
+    return kq;
+  }
+
   return kq;
 }
 
@@ -2795,6 +3099,2248 @@ function setCurrentLocationAsWorkshop(data) {
   };
 }
 
+/*******************************************************
+ *******************************************************
+ **              MODULE V4.0 - ĐỢT 1                  **
+ **  Nền V4 + feature flags (FALSE/TEST/TRUE) +       **
+ **  Reminder Center + Sinh nhật + Hết thử việc +     **
+ **  Thông báo nội bộ.                                **
+ **  KHÔNG chèn guard khóa kỳ (để Đợt 3).             **
+ **  KHÔNG sửa hàm V3.3.3 nào ngoài các điểm chạm     **
+ **  đã duyệt trong KIEN-TRUC-V4.md.                  **
+ *******************************************************
+ *******************************************************/
+
+// ================== V4: SETUP (CHẠY 1 LẦN, IDEMPOTENT) ==================
+
+var DS_MODULE_V4 = [
+  'ReminderCenter', 'Birthday', 'Probation', 'ShiftRequest', 'EarlyLeave',
+  'Overtime', 'Announcement', 'PayrollLock', 'SalaryConfirm', 'OwnerDashboard',
+  // V5.0 Production
+  'KPI', 'AttendanceV2', 'SalaryHistory'
+];
+
+/**
+ * setupSheetsV4() - migration V4, AN TOÀN TUYỆT ĐỐI:
+ * - Idempotent: chạy lần 2, 3 không tạo trùng, không xóa, không ghi đè,
+ *   không seed đè flag đã đổi.
+ * - Chỉ tạo sheet còn thiếu; chỉ nối cột còn thiếu vào CUỐI NHAN_VIEN.
+ * - KHÔNG gọi setupSheets() cũ.
+ * - Log rõ việc SẼ làm trước khi ghi; trả báo cáo chi tiết sau khi chạy.
+ */
+function setupSheetsV4() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var baoCao = { sheetTaoMoi: [], sheetGiuNguyen: [], cotNoiThem: [], dongSeed: [] };
+
+  var dinhNghiaV4 = [
+    { name: TEN_SHEET.CAU_HINH_MODULE, headers: ['Module', 'Enable', 'GhiChu'], sample: [] },
+    { name: TEN_SHEET.DOI_CA, headers: ['DoiCaID', 'UserID', 'HoTen', 'PhongBan', 'Ngay', 'CaDeNghi', 'GioBatDau', 'GioKetThuc', 'LyDo', 'TrangThai', 'NguoiDuyet', 'ThoiGianDuyet', 'LyDoTuChoi', 'LichLamID', 'ThoiGianTao'], sample: [] },
+    { name: TEN_SHEET.VE_SOM, headers: ['VeSomID', 'UserID', 'HoTen', 'PhongBan', 'Ngay', 'GioVeSom', 'LyDo', 'TrangThai', 'NguoiDuyet', 'ThoiGianDuyet', 'LyDoTuChoi', 'ThoiGianTao'], sample: [] },
+    { name: TEN_SHEET.THONG_BAO, headers: ['ThongBaoID', 'TieuDe', 'NoiDung', 'PhongBan', 'QuanTrong', 'NguoiTao', 'ThoiGianTao', 'HanHienThi', 'TrangThai'], sample: [] },
+    { name: TEN_SHEET.THONG_BAO_DA_DOC, headers: ['ThongBaoID', 'UserID', 'ThoiGianDoc'], sample: [] },
+    { name: TEN_SHEET.CHOT_KY, headers: ['ChotID', 'Loai', 'Thang', 'Nam', 'LanChot', 'TrangThai', 'NguoiChot', 'ThoiGianChot', 'NguoiMoKhoa', 'ThoiGianMoKhoa', 'GhiChu'], sample: [] },
+    { name: TEN_SHEET.BANG_LUONG, headers: ['BangLuongID', 'Thang', 'Nam', 'LanChot', 'HieuLuc', 'UserID', 'HoTen', 'PhongBan', 'HinhThucLuong', 'LuongCoBan', 'LuongTheoGio', 'PhuCapCoDinh', 'TongGioLam', 'TongGioTangCa', 'NghiCoPhep', 'NghiKhongPhep', 'TamUngDaChi', 'Thuong', 'Phat', 'PhuCap', 'KhauTru', 'TongTamTinh', 'GhiChu', 'NguoiChot', 'ThoiGianChot', 'DaKyNhan', 'ThoiGianKyNhan', 'ThietBiKyNhan'], sample: [] },
+    // NHAN_VIEN: 17 cột cũ giữ nguyên thứ tự + 2 cột V4 nối CUỐI
+    { name: TEN_SHEET.NHAN_VIEN, headers: ['UserID', 'HoTen', 'SoDienThoai', 'PhongBan', 'ChucVu', 'NgayVaoLam', 'NgayNghiViec', 'HinhThucLuong', 'LuongCoBan', 'LuongTheoGio', 'PhuCapCoDinh', 'SoTaiKhoan', 'TenNganHang', 'TrangThaiLamViec', 'GhiChu', 'ThoiGianTao', 'ThoiGianCapNhat', 'NgaySinh', 'NgayKetThucThuViec'], sample: [] }
+  ];
+
+  // BƯỚC 1+2: với từng sheet - log việc SẼ làm, rồi thực hiện bằng ensureSheetSafe_
+  dinhNghiaV4.forEach(function (dn) {
+    var sh = ss.getSheetByName(dn.name);
+    if (!sh) {
+      Logger.log('[V4-SETUP] SẼ TẠO sheet mới: ' + dn.name);
+      ensureSheetSafe_(ss, dn);
+      // RC1: xóa cả cache của sheet vừa tạo - phòng CacheService còn giữ bản []
+      // từ lần app đọc trước khi sheet tồn tại (TTL 5 phút)
+      invalidateSheetCache_(dn.name);
+      baoCao.sheetTaoMoi.push(dn.name);
+      return;
+    }
+    // Sheet đã có: xác định cột thiếu (chỉ nối cuối, không đổi thứ tự cột cũ)
+    var lastCol = sh.getLastColumn();
+    var hienCo = lastCol > 0
+      ? sh.getRange(1, 1, 1, lastCol).getValues()[0].map(function (h) { return normalizeStr_(h); })
+      : [];
+    var thieu = dn.headers.filter(function (h) { return hienCo.indexOf(h) < 0; });
+    if (thieu.length > 0) {
+      Logger.log('[V4-SETUP] SẼ NỐI cột vào CUỐI ' + dn.name + ': ' + thieu.join(', '));
+    } else {
+      Logger.log('[V4-SETUP] Giữ nguyên ' + dn.name + ' (đủ cột).');
+    }
+    ensureSheetSafe_(ss, dn);
+    invalidateSheetCache_(dn.name);
+    baoCao.sheetGiuNguyen.push(dn.name);
+    thieu.forEach(function (h) { baoCao.cotNoiThem.push(dn.name + '.' + h); });
+  });
+
+  // BƯỚC 3: seed feature flags - TẤT CẢ FALSE, chỉ seed Module CHƯA có dòng
+  invalidateSheetCache_(TEN_SHEET.CAU_HINH_MODULE);
+  var flagDaCo = {};
+  getSheetData(TEN_SHEET.CAU_HINH_MODULE).forEach(function (r) {
+    flagDaCo[normalizeStr_(r.Module)] = true;
+  });
+  DS_MODULE_V4.forEach(function (m) {
+    if (flagDaCo[m]) return; // idempotent: không seed đè flag đã có (kể cả đã bật TEST/TRUE)
+    Logger.log('[V4-SETUP] SẼ SEED flag: ' + m + ' = FALSE');
+    appendRow(TEN_SHEET.CAU_HINH_MODULE, {
+      Module: m, Enable: 'FALSE',
+      GhiChu: 'V4: FALSE=tắt, TEST=chỉ chủ xưởng/quản lý thấy, TRUE=bật toàn xưởng'
+    });
+    baoCao.dongSeed.push('CAU_HINH_MODULE: ' + m + ' = FALSE');
+  });
+
+  // BƯỚC 4: seed ChuXuongUserID (VALUE RỖNG - không suy đoán user), chỉ khi chưa có key
+  invalidateSheetCache_(TEN_SHEET.CAU_HINH_CHUNG);
+  var coKeyChuXuong = getSheetData(TEN_SHEET.CAU_HINH_CHUNG).some(function (r) {
+    return normalizeStr_(r.Key) === 'ChuXuongUserID';
+  });
+  if (!coKeyChuXuong) {
+    Logger.log('[V4-SETUP] SẼ SEED cấu hình: ChuXuongUserID = (rỗng)');
+    appendRow(TEN_SHEET.CAU_HINH_CHUNG, {
+      Key: 'ChuXuongUserID', Value: '',
+      GhiChu: 'UserID chủ xưởng (V4) - BẮT BUỘC điền trước khi dùng mở khóa kỳ. App không tự suy đoán.'
+    });
+    baoCao.dongSeed.push('CAU_HINH_CHUNG: ChuXuongUserID = (rỗng)');
+  }
+
+  Logger.log('[V4-SETUP] KẾT QUẢ: ' + JSON.stringify(baoCao));
+  return baoCao;
+}
+
+// ================== V4: FEATURE FLAGS (FALSE / TEST / TRUE) ==================
+
+/**
+ * Trạng thái thô của 1 module: 'TRUE' | 'TEST' | 'FALSE'.
+ * Không có dòng / giá trị lạ -> 'FALSE' (an toàn mặc định).
+ */
+function getModuleState_(tenModule) {
+  var rows = getSheetDataSafe_(TEN_SHEET.CAU_HINH_MODULE);
+  for (var i = 0; i < rows.length; i++) {
+    if (normalizeStr_(rows[i].Module) === tenModule) {
+      var v = normalizeStr_(rows[i].Enable).toUpperCase();
+      if (v === 'TRUE') return 'TRUE';
+      if (v === 'TEST') return 'TEST';
+      return 'FALSE';
+    }
+  }
+  return 'FALSE';
+}
+
+/** User có phải nhóm quản lý không (dùng cho trạng thái TEST). */
+function laQuanLy_(p) {
+  return !!(p && (p.duocXemDashboard || p.duocDuyetNghi || p.duocSuaCauHinh ||
+    p.duocQuanLyNhanSu || p.duocSuaCong || p.duocXemBangLuong ||
+    p.duocDuyetTamUng || p.duocChotLuong));
+}
+
+/** UserID chủ xưởng từ CAU_HINH_CHUNG (chuỗi rỗng nếu chưa cấu hình). */
+function getChuXuongUserID_() {
+  return normalizeStr_(getConfigMap_()['ChuXuongUserID']);
+}
+
+/**
+ * User có được DÙNG module không (đã tính trạng thái TEST):
+ * - TRUE  -> mọi user (phân quyền chi tiết vẫn check riêng trong từng API).
+ * - TEST  -> chỉ chủ xưởng (ChuXuongUserID) hoặc tài khoản nhóm quản lý.
+ * - FALSE -> không ai.
+ */
+function moduleEnabledFor_(tenModule, userPayload) {
+  var st = getModuleState_(tenModule);
+  if (st === 'TRUE') return true;
+  if (st === 'TEST') {
+    if (!userPayload) return false;
+    var chuXuong = getChuXuongUserID_();
+    if (chuXuong && userPayload.userID === chuXuong) return true;
+    return laQuanLy_(userPayload);
+  }
+  return false;
+}
+
+/**
+ * Guard chuẩn đầu mỗi API module V4: kiểm tra user + flag Ở BACKEND
+ * (không chỉ ẩn menu frontend).
+ * Trả { err } nếu bị chặn, hoặc { u, p } để hàm dùng tiếp.
+ */
+function checkModule_(tenModule, userID) {
+  var u = checkUserActive(userID);
+  if (!u) return { err: { success: false, message: 'Tài khoản không hợp lệ.' } };
+  var p = buildUserPayload_(u);
+  if (!moduleEnabledFor_(tenModule, p)) {
+    return { err: { success: false, message: 'Chức năng đang tắt.' } };
+  }
+  return { u: u, p: p };
+}
+
+/**
+ * Trả về trạng thái các module CHO USER HIỆN TẠI (frontend ẩn/hiện nút).
+ * duocDung đã tính TEST; trangThai thô chỉ trả cho nhóm quản lý.
+ */
+function getModuleConfig(userID) {
+  var u = checkUserActive(userID);
+  if (!u) return { success: false, message: 'Tài khoản không hợp lệ.' };
+  var p = buildUserPayload_(u);
+  var laQL = laQuanLy_(p);
+  var list = DS_MODULE_V4.map(function (m) {
+    return {
+      module: m,
+      duocDung: moduleEnabledFor_(m, p),
+      trangThai: laQL ? getModuleState_(m) : undefined
+    };
+  });
+  return { success: true, message: 'OK', data: list };
+}
+
+/** data = { userID, module, enable } - enable chỉ nhận FALSE / TEST / TRUE. */
+function updateModuleConfig(data) {
+  var mgr = checkPermission(data.userID, 'DuocSuaCauHinh');
+  if (!mgr) return { success: false, message: 'Bạn không có quyền bật/tắt module.' };
+
+  var tenModule = normalizeStr_(data.module);
+  if (DS_MODULE_V4.indexOf(tenModule) < 0) return { success: false, message: 'Module không hợp lệ.' };
+  var enable = normalizeStr_(data.enable).toUpperCase();
+  if (['FALSE', 'TEST', 'TRUE'].indexOf(enable) < 0) {
+    return { success: false, message: 'Trạng thái chỉ nhận FALSE / TEST / TRUE.' };
+  }
+
+  var found = updateRowById(TEN_SHEET.CAU_HINH_MODULE, 'Module', tenModule, { Enable: enable });
+  if (!found) {
+    appendRow(TEN_SHEET.CAU_HINH_MODULE, { Module: tenModule, Enable: enable, GhiChu: '' });
+  }
+  writeAttendanceHistory({
+    recordID: tenModule, userID: '', hoTen: '',
+    hanhDong: 'Đổi trạng thái module V4', giaTriCu: '', giaTriMoi: tenModule + ' = ' + enable,
+    nguoiThucHien: normalizeStr_(mgr.UserID), ghiChu: ''
+  });
+  return { success: true, message: 'Đã đặt ' + tenModule + ' = ' + enable + '.' };
+}
+
+// ================== V4 M2+M3: SINH NHẬT & HẾT THỬ VIỆC ==================
+
+/** Sinh nhật hôm nay + 7 ngày tới (so ngày-tháng, bỏ năm; xử lý qua năm). */
+function getBirthdays(userID) {
+  var ctx = checkModule_('Birthday', userID);
+  if (ctx.err) return ctx.err;
+  if (!laQuanLy_(ctx.p)) return { success: false, message: 'Bạn không có quyền xem danh sách sinh nhật.' };
+
+  var homNay = todayStr_();
+  var nhanVien = getSheetDataSafe_(TEN_SHEET.NHAN_VIEN).filter(function (r) {
+    return normalizeStr_(r.TrangThaiLamViec) === 'Đang làm' && normalizeStr_(r.NgaySinh);
+  });
+
+  var dsHomNay = [], dsSapToi = [];
+  for (var offset = 0; offset <= 7; offset++) {
+    var ngay = addDaysStr_(homNay, offset);
+    var mmdd = ngay.slice(5); // 'MM-dd'
+    nhanVien.forEach(function (r) {
+      var ns = normalizeDate_(r.NgaySinh);
+      if (ns.length < 10 || ns.slice(5) !== mmdd) return;
+      var item = {
+        hoTen: normalizeStr_(r.HoTen),
+        phongBan: normalizeStr_(r.PhongBan),
+        ngaySinh: ns,
+        ngayMung: ngay,
+        conNgay: offset
+      };
+      if (offset === 0) dsHomNay.push(item); else dsSapToi.push(item);
+    });
+  }
+  return { success: true, message: 'OK', data: { homNay: dsHomNay, sapToi: dsSapToi } };
+}
+
+/** Hết thử việc: quá hạn / hôm nay / còn 1-3 ngày / còn 4-7 ngày. */
+function getProbationAlerts(userID) {
+  var ctx = checkModule_('Probation', userID);
+  if (ctx.err) return ctx.err;
+  if (!laQuanLy_(ctx.p)) return { success: false, message: 'Bạn không có quyền xem danh sách thử việc.' };
+
+  var homNay = todayStr_();
+  var quaHan = [], denHomNay = [], con3Ngay = [], con7Ngay = [];
+
+  getSheetDataSafe_(TEN_SHEET.NHAN_VIEN).forEach(function (r) {
+    if (normalizeStr_(r.TrangThaiLamViec) !== 'Đang làm') return;
+    var ngayKT = normalizeDate_(r.NgayKetThucThuViec);
+    if (!isValidDateStr_(ngayKT)) return;
+    var conNgay = dateDiffDays_(homNay, ngayKT);
+    var item = {
+      hoTen: normalizeStr_(r.HoTen),
+      phongBan: normalizeStr_(r.PhongBan),
+      ngayKetThuc: ngayKT,
+      conNgay: conNgay
+    };
+    if (conNgay < 0) quaHan.push(item);
+    else if (conNgay === 0) denHomNay.push(item);
+    else if (conNgay <= 3) con3Ngay.push(item);
+    else if (conNgay <= 7) con7Ngay.push(item);
+  });
+
+  return { success: true, message: 'OK', data: { quaHan: quaHan, homNay: denHomNay, con3Ngay: con3Ngay, con7Ngay: con7Ngay } };
+}
+
+// ================== V4 M7: THÔNG BÁO NỘI BỘ ==================
+
+// Giới hạn đọc sheet đã-đọc: chỉ N dòng cuối (sheet phình theo thời gian)
+var TB_DA_DOC_TAIL = 2000;
+
+function buildThongBaoPayload_(r) {
+  return {
+    thongBaoID: normalizeStr_(r.ThongBaoID),
+    tieuDe: normalizeStr_(r.TieuDe),
+    noiDung: normalizeStr_(r.NoiDung),
+    phongBan: normalizeStr_(r.PhongBan),
+    quanTrong: isTrue_(r.QuanTrong),
+    nguoiTao: normalizeStr_(r.NguoiTao),
+    thoiGianTao: normalizeStr_(r.ThoiGianTao),
+    hanHienThi: normalizeDate_(r.HanHienThi),
+    trangThai: normalizeStr_(r.TrangThai)
+  };
+}
+
+/**
+ * Lõi lấy thông báo cho 1 user: Active, còn hạn, đúng phòng ban (hoặc toàn xưởng),
+ * kèm cờ đã đọc. Dùng chung cho getAnnouncements và getPendingTasks (memo lo hiệu năng).
+ */
+function layThongBaoCuaUser_(u) {
+  var homNay = todayStr_();
+  var pbUser = normalizeStr_(u.PhongBan);
+  var userID = normalizeStr_(u.UserID);
+
+  var daDoc = {};
+  getSheetDataTail_(TEN_SHEET.THONG_BAO_DA_DOC, TB_DA_DOC_TAIL).forEach(function (r) {
+    if (normalizeStr_(r.UserID) === userID) daDoc[normalizeStr_(r.ThongBaoID)] = true;
+  });
+
+  var danhSach = getSheetDataSafe_(TEN_SHEET.THONG_BAO)
+    .map(buildThongBaoPayload_)
+    .filter(function (tb) {
+      if (tb.trangThai !== 'Active') return false;
+      if (tb.hanHienThi && tb.hanHienThi < homNay) return false;
+      if (tb.phongBan && tb.phongBan !== pbUser) return false;
+      return true;
+    })
+    .map(function (tb) { tb.daDoc = !!daDoc[tb.thongBaoID]; return tb; })
+    .sort(function (a, b) { return a.thoiGianTao < b.thoiGianTao ? 1 : -1; });
+
+  var soChuaDoc = 0;
+  var popup = [];
+  danhSach.forEach(function (tb) {
+    if (!tb.daDoc) {
+      soChuaDoc++;
+      if (tb.quanTrong && popup.length < 3) popup.push(tb);
+    }
+  });
+  return { danhSach: danhSach, soChuaDoc: soChuaDoc, popup: popup };
+}
+
+/**
+ * Lấy thông báo. xemTatCa = true (chỉ người có quyền tạo): trả mọi thông báo
+ * Active không lọc phòng ban/hạn - dùng cho màn quản lý.
+ */
+function getAnnouncements(userID, xemTatCa) {
+  var ctx = checkModule_('Announcement', userID);
+  if (ctx.err) return ctx.err;
+
+  if (xemTatCa === true) {
+    if (!ctx.p.duocDuyetNghi && !ctx.p.duocSuaCauHinh) {
+      return { success: false, message: 'Bạn không có quyền quản lý thông báo.' };
+    }
+    var tatCa = getSheetDataSafe_(TEN_SHEET.THONG_BAO)
+      .map(buildThongBaoPayload_)
+      .filter(function (tb) { return tb.trangThai === 'Active'; })
+      .sort(function (a, b) { return a.thoiGianTao < b.thoiGianTao ? 1 : -1; });
+    return { success: true, message: 'OK', data: { danhSach: tatCa, soChuaDoc: 0, popup: [] } };
+  }
+
+  return { success: true, message: 'OK', data: layThongBaoCuaUser_(ctx.u) };
+}
+
+/**
+ * PM tạo thông báo.
+ * data = { userID, tieuDe, noiDung, phongBan, quanTrong, hanHienThi }
+ */
+function createAnnouncement(data) {
+  var ctx = checkModule_('Announcement', data.userID);
+  if (ctx.err) return ctx.err;
+  if (!ctx.p.duocDuyetNghi && !ctx.p.duocSuaCauHinh) {
+    return { success: false, message: 'Bạn không có quyền tạo thông báo.' };
+  }
+
+  var tieuDe = normalizeStr_(data.tieuDe);
+  var noiDung = normalizeStr_(data.noiDung);
+  if (!tieuDe) return { success: false, message: 'Vui lòng nhập tiêu đề.' };
+  if (!noiDung) return { success: false, message: 'Vui lòng nhập nội dung.' };
+  var hanHienThi = normalizeDate_(data.hanHienThi);
+  if (hanHienThi && !isValidDateStr_(hanHienThi)) {
+    return { success: false, message: 'Hạn hiển thị không hợp lệ.' };
+  }
+
+  var id = 'TB-' + Utilities.formatDate(new Date(), TIMEZONE, 'yyyyMMddHHmmss') + '-' + Math.floor(Math.random() * 900 + 100);
+  appendRow(TEN_SHEET.THONG_BAO, {
+    ThongBaoID: id,
+    TieuDe: tieuDe,
+    NoiDung: noiDung,
+    PhongBan: normalizeStr_(data.phongBan), // rỗng = toàn xưởng
+    QuanTrong: data.quanTrong === true ? 'TRUE' : 'FALSE',
+    NguoiTao: ctx.p.userID,
+    ThoiGianTao: nowStr_(),
+    HanHienThi: hanHienThi,
+    TrangThai: 'Active'
+  });
+  writeAttendanceHistory({
+    recordID: id, userID: '', hoTen: '',
+    hanhDong: 'Tạo thông báo', giaTriCu: '', giaTriMoi: tieuDe,
+    nguoiThucHien: ctx.p.userID, ghiChu: normalizeStr_(data.phongBan) || 'Toàn xưởng'
+  });
+  return { success: true, message: 'Đã đăng thông báo "' + tieuDe + '".', data: { thongBaoID: id } };
+}
+
+/** Đánh dấu đã đọc (idempotent). data = { userID, thongBaoID } */
+function markAnnouncementRead(data) {
+  var ctx = checkModule_('Announcement', data.userID);
+  if (ctx.err) return ctx.err;
+
+  var thongBaoID = normalizeStr_(data.thongBaoID);
+  if (!thongBaoID) return { success: false, message: 'Thiếu mã thông báo.' };
+
+  var userID = ctx.p.userID;
+  var daCo = getSheetDataTail_(TEN_SHEET.THONG_BAO_DA_DOC, TB_DA_DOC_TAIL).some(function (r) {
+    return normalizeStr_(r.UserID) === userID && normalizeStr_(r.ThongBaoID) === thongBaoID;
+  });
+  if (daCo) return { success: true, message: 'Đã ghi nhận trước đó.' };
+
+  appendRow(TEN_SHEET.THONG_BAO_DA_DOC, {
+    ThongBaoID: thongBaoID, UserID: userID, ThoiGianDoc: nowStr_()
+  });
+  return { success: true, message: 'Đã đánh dấu đã đọc.' };
+}
+
+/** Gỡ thông báo (Inactive, không xóa dòng). data = { userID, thongBaoID } */
+function deactivateAnnouncement(data) {
+  var ctx = checkModule_('Announcement', data.userID);
+  if (ctx.err) return ctx.err;
+  if (!ctx.p.duocDuyetNghi && !ctx.p.duocSuaCauHinh) {
+    return { success: false, message: 'Bạn không có quyền gỡ thông báo.' };
+  }
+  var found = updateRowById(TEN_SHEET.THONG_BAO, 'ThongBaoID', data.thongBaoID, { TrangThai: 'Inactive' });
+  if (!found) return { success: false, message: 'Không tìm thấy thông báo.' };
+  writeAttendanceHistory({
+    recordID: normalizeStr_(data.thongBaoID), userID: '', hoTen: '',
+    hanhDong: 'Gỡ thông báo', giaTriCu: 'Active', giaTriMoi: 'Inactive',
+    nguoiThucHien: ctx.p.userID, ghiChu: ''
+  });
+  return { success: true, message: 'Đã gỡ thông báo.' };
+}
+
+// ================== V4 M1: TRUNG TÂM VIỆC CẦN XỬ LÝ ==================
+
+/**
+ * MỘT request tổng hợp mọi việc cần xử lý (backend tự gom, frontend không
+ * được gọi nhiều API con nối tiếp). Mỗi sheet chỉ đọc 1 lần nhờ memo.
+ * Từng mục con tôn trọng flag module tương ứng.
+ */
+function getPendingTasks(userID) {
+  var ctx = checkModule_('ReminderCenter', userID);
+  if (ctx.err) return ctx.err;
+  var p = ctx.p;
+  var homNay = todayStr_();
+
+  var kq = { tongViec: 0, muc: [] };
+  function them(ma, ten, danhSach, manHinh) {
+    kq.muc.push({ ma: ma, ten: ten, soLuong: danhSach.length, danhSach: danhSach.slice(0, 10), manHinh: manHinh });
+    kq.tongViec += danhSach.length;
+  }
+
+  // ----- Đơn nghỉ chờ duyệt (module nghỉ phép V1 - luôn có) -----
+  if (p.duocDuyetNghi) {
+    var donNghi = getSheetData(TEN_SHEET.LICH_NGHI)
+      .filter(function (r) {
+        var tt = normalizeStr_(r.TrangThai);
+        return tt === TRANG_THAI.CHO_DUYET || tt === TRANG_THAI.YEU_CAU_DAC_BIET;
+      })
+      .map(function (r) {
+        return normalizeStr_(r.HoTen) + ' - ' + normalizeDate_(r.NgayNghi) + ' - ' + normalizeStr_(r.CaNghi) +
+          (normalizeStr_(r.TrangThai) === TRANG_THAI.YEU_CAU_DAC_BIET ? ' (đặc biệt)' : '');
+      });
+    them('donNghi', '📝 Đơn nghỉ chờ duyệt', donNghi, 'duyet');
+  }
+
+  if (p.duocSuaCong) {
+    // ----- Tăng ca chờ duyệt (sheet TANG_CA V3 - luôn đếm vì màn duyệt V3 luôn chạy) -----
+    var otCho = getSheetDataSafe_(TEN_SHEET.TANG_CA)
+      .filter(function (r) { return normalizeStr_(r.TrangThai) === TT_TANG_CA.CHO_DUYET; })
+      .map(function (r) { return normalizeStr_(r.HoTen) + ' - ' + normalizeDate_(r.Ngay) + ' (' + (Number(r.SoGioTangCa) || 0) + 'h)'; });
+    them('tangCa', '🌙 Tăng ca chờ duyệt', otCho, 'tangca');
+
+    // ----- Đổi ca chờ duyệt (module Đợt 2 - chỉ đếm khi flag bật) -----
+    if (moduleEnabledFor_('ShiftRequest', p)) {
+      var doiCa = getSheetDataSafe_(TEN_SHEET.DOI_CA)
+        .filter(function (r) { return normalizeStr_(r.TrangThai) === 'Chờ duyệt'; })
+        .map(function (r) { return normalizeStr_(r.HoTen) + ' - ' + normalizeDate_(r.Ngay); });
+      them('doiCa', '🔄 Đổi ca chờ duyệt', doiCa, '');
+    }
+
+    // ----- Về sớm chờ duyệt (module Đợt 2) -----
+    if (moduleEnabledFor_('EarlyLeave', p)) {
+      var veSom = getSheetDataSafe_(TEN_SHEET.VE_SOM)
+        .filter(function (r) { return normalizeStr_(r.TrangThai) === 'Chờ duyệt'; })
+        .map(function (r) { return normalizeStr_(r.HoTen) + ' - ' + normalizeDate_(r.Ngay) + ' từ ' + normalizeStr_(r.GioVeSom); });
+      them('veSom', '🏃 Về sớm chờ duyệt', veSom, '');
+    }
+
+    // ----- Chưa chấm vào / chưa chấm ra hôm nay -----
+    var ccTheoUser = {};
+    getSheetDataSafe_(TEN_SHEET.CHAM_CONG).forEach(function (r) {
+      if (normalizeDate_(r.Ngay) === homNay) ccTheoUser[normalizeStr_(r.UserID)] = r;
+    });
+    var nghiHomNay = {};
+    getSheetData(TEN_SHEET.LICH_NGHI).forEach(function (r) {
+      if (normalizeDate_(r.NgayNghi) === homNay && normalizeStr_(r.TrangThai) === TRANG_THAI.DA_DUYET) {
+        nghiHomNay[normalizeStr_(r.UserID)] = true;
+      }
+    });
+    var chuaVao = [], chuaRa = [];
+    getSheetData(TEN_SHEET.USERS).forEach(function (us) {
+      if (!isActive_(us.TrangThai)) return;
+      var id = normalizeStr_(us.UserID);
+      var cc = ccTheoUser[id];
+      if (cc && normalizeStr_(cc.GioVao)) {
+        if (!normalizeStr_(cc.GioRa)) chuaRa.push(normalizeStr_(us.HoTen) + ' (' + normalizeStr_(us.PhongBan) + ') - vào ' + normalizeStr_(cc.GioVao));
+      } else if (!nghiHomNay[id]) {
+        chuaVao.push(normalizeStr_(us.HoTen) + ' (' + normalizeStr_(us.PhongBan) + ')');
+      }
+    });
+    them('chuaChamVao', '⏳ Chưa chấm vào hôm nay', chuaVao, 'bcngay');
+    them('chuaChamRa', '🚪 Đã vào, chưa chấm ra', chuaRa, 'bcngay');
+  }
+
+  // ----- Sinh nhật hôm nay (flag Birthday) -----
+  if (laQuanLy_(p) && moduleEnabledFor_('Birthday', p)) {
+    var sinhNhat = [];
+    var mmddHomNay = homNay.slice(5);
+    getSheetDataSafe_(TEN_SHEET.NHAN_VIEN).forEach(function (r) {
+      if (normalizeStr_(r.TrangThaiLamViec) !== 'Đang làm') return;
+      var ns = normalizeDate_(r.NgaySinh);
+      if (ns.length >= 10 && ns.slice(5) === mmddHomNay) {
+        sinhNhat.push(normalizeStr_(r.HoTen) + ' (' + normalizeStr_(r.PhongBan) + ')');
+      }
+    });
+    them('sinhNhat', '🎂 Sinh nhật hôm nay', sinhNhat, 'birthday');
+  }
+
+  // ----- Hết thử việc trong 7 ngày (flag Probation) -----
+  if (laQuanLy_(p) && moduleEnabledFor_('Probation', p)) {
+    var thuViec = [];
+    getSheetDataSafe_(TEN_SHEET.NHAN_VIEN).forEach(function (r) {
+      if (normalizeStr_(r.TrangThaiLamViec) !== 'Đang làm') return;
+      var ngayKT = normalizeDate_(r.NgayKetThucThuViec);
+      if (!isValidDateStr_(ngayKT)) return;
+      var conNgay = dateDiffDays_(homNay, ngayKT);
+      if (conNgay <= 7) {
+        thuViec.push(normalizeStr_(r.HoTen) + ' (' + normalizeStr_(r.PhongBan) + ') - ' +
+          (conNgay < 0 ? 'QUÁ HẠN ' + (-conNgay) + ' ngày' : (conNgay === 0 ? 'HÔM NAY' : 'còn ' + conNgay + ' ngày')));
+      }
+    });
+    them('thuViec', '📋 Hết thử việc (≤7 ngày)', thuViec, 'birthday');
+  }
+
+  // ----- Thông báo chưa đọc của chính user (flag Announcement) -----
+  if (moduleEnabledFor_('Announcement', p)) {
+    var tb = layThongBaoCuaUser_(ctx.u);
+    var dsChuaDoc = tb.danhSach.filter(function (t) { return !t.daDoc; }).map(function (t) { return t.tieuDe; });
+    them('thongBao', '📢 Thông báo chưa đọc', dsChuaDoc, 'thongbao');
+  }
+
+  return { success: true, message: 'OK', data: kq };
+}
+
+/*******************************************************
+ **  V5.0-RC2: KHỐI NGOẠI LỆ GPS V4.0.2 ĐÃ GỠ TOÀN BỘ  **
+ **  (setupSheetsV402, NGOAI_LE_GPS, CheDoGPSKhanCap,  **
+ **  6 API ngoại lệ). GPS chỉ còn fail-closed đơn giản. **
+ **  Giữ lại 2 helper chủ xưởng dùng chung cho V5:      **
+ *******************************************************/
+
+/** Chỉ đúng ChuXuongUserID (đã cấu hình) mới là chủ xưởng. Không suy đoán. */
+function laChuXuong_(userID) {
+  var cx = getChuXuongUserID_();
+  return !!cx && normalizeStr_(userID) === cx;
+}
+
+function loiQuyenChuXuong_() {
+  return getChuXuongUserID_()
+    ? { success: false, message: 'Chỉ chủ xưởng được thực hiện thao tác này.' }
+    : { success: false, message: 'Chưa cấu hình ChuXuongUserID trong Cấu hình chung. Vào Quản lý slot → Cấu hình chung điền UserID chủ xưởng trước.' };
+}
+
+/*******************************************************
+ *******************************************************
+ **         MODULE V5.0 PRODUCTION - NHÀ MÌNH         **
+ **  Thực thi V4.1-V4.4 đã chốt + chỉ đạo Production. **
+ **  Mọi module flag FALSE mặc định - bật dần P1->P4. **
+ *******************************************************
+ *******************************************************/
+
+// ================== V5: SETUP (CHẠY 1 LẦN, IDEMPOTENT) ==================
+
+/**
+ * setupSheetsV5() - migration V5 Production, chạy được THẲNG TỪ NỀN V3.3.3.
+ * An toàn tuyệt đối: chỉ tạo sheet thiếu, nối cột CUỐI, seed dòng chưa có.
+ * Log trước khi ghi + báo cáo. Idempotent - chạy lần 2 trả báo cáo rỗng.
+ * Tự gọi setupSheetsV4() trước để tạo đủ sheet nền V4 (flags, DOI_CA, VE_SOM,
+ * THONG_BAO, CHOT_KY, BANG_LUONG, 2 cột NHAN_VIEN, ChuXuongUserID).
+ */
+function setupSheetsV5() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var baoCao = { sheetTaoMoi: [], cotNoiThem: [], dongSeed: [] };
+
+  // BƯỚC 0: nền V4 (idempotent) - gộp báo cáo để đối chiếu 1 lần
+  var bcV4 = setupSheetsV4();
+  baoCao.sheetTaoMoi = baoCao.sheetTaoMoi.concat(bcV4.sheetTaoMoi || []);
+  baoCao.cotNoiThem = baoCao.cotNoiThem.concat(bcV4.cotNoiThem || []);
+  baoCao.dongSeed = baoCao.dongSeed.concat(bcV4.dongSeed || []);
+
+  var dinhNghia = [
+    { name: TEN_SHEET.KPI_NGAY, headers: ['Ngay', 'PhongBan', 'ChiTieu', 'ThucTe', 'NguoiCapNhat', 'ThoiGianCapNhat', 'GhiChu'], sample: [] },
+    { name: TEN_SHEET.CAU_HINH_KPI, headers: ['PhongBan', 'ChiTieuMacDinh', 'TrangThai'], sample: [['CSKH', '100', 'Active'], ['KyThuat', '100', 'Active'], ['GiaCong', '100', 'Active']] },
+    { name: TEN_SHEET.CHAM_CONG_EVENT, headers: ['EventID', 'UserID', 'HoTen', 'PhongBan', 'Loai', 'Ngay', 'ThoiGian', 'ViDo', 'KinhDo', 'DoChinhXac', 'KhoangCach', 'ThietBi'], sample: [] },
+    { name: TEN_SHEET.DIEU_CHINH_CONG, headers: ['PhieuID', 'UserID', 'HoTen', 'Ngay', 'CapDo', 'Loai', 'GiaTriCu', 'GiaTriMoi', 'LyDo', 'NguoiTao', 'ThoiGianTao', 'NguoiDuyet', 'ThoiGianDuyet', 'TrangThai', 'GhiChu', 'NguoiVoHieu', 'ThoiGianVoHieu', 'LyDoVoHieu'], sample: [] },
+    { name: TEN_SHEET.LICH_SU_LUONG, headers: ['LuongID', 'UserID', 'HoTen', 'LuongChinhThuc', 'TyLe', 'LuongApDung', 'LuongTheoGio', 'PhuCapCoDinh', 'HieuLucTu', 'HieuLucDen', 'LyDo', 'QuyetDinhID', 'NguoiDuyet', 'ThoiGianTao'], sample: [] },
+    { name: TEN_SHEET.QUYET_DINH_NHAN_SU, headers: ['QDID', 'UserID', 'HoTen', 'Loai', 'NoiDungCu', 'NoiDungMoi', 'HieuLucTu', 'LyDo', 'NguoiDeXuat', 'NguoiDuyet', 'ThoiGianDuyet', 'TrangThai', 'GhiChu'], sample: [] },
+    { name: TEN_SHEET.CAU_HINH_CONG_CHUAN, headers: ['Thang', 'Nam', 'PhongBan', 'CongChuan', 'GhiChu'], sample: [] },
+    // Nối cột CUỐI các sheet đã có (không đổi cột cũ)
+    { name: TEN_SHEET.NHAN_VIEN, headers: ['UserID', 'HoTen', 'SoDienThoai', 'PhongBan', 'ChucVu', 'NgayVaoLam', 'NgayNghiViec', 'HinhThucLuong', 'LuongCoBan', 'LuongTheoGio', 'PhuCapCoDinh', 'SoTaiKhoan', 'TenNganHang', 'TrangThaiLamViec', 'GhiChu', 'ThoiGianTao', 'ThoiGianCapNhat', 'NgaySinh', 'NgayKetThucThuViec', 'NgayChinhThuc'], sample: [] },
+    { name: TEN_SHEET.CHAM_CONG, headers: ['ChamCongID', 'UserID', 'HoTen', 'PhongBan', 'Ngay', 'GioVao', 'GioRa', 'CaLam', 'SoGioLam', 'DiTre', 'SoPhutTre', 'VeSom', 'SoPhutVeSom', 'TangCa', 'SoGioTangCa', 'TrangThai', 'GhiChuNhanVien', 'GhiChuQuanLy', 'NguoiSuaCuoi', 'ThoiGianTao', 'ThoiGianCapNhat', 'ViDoVao', 'KinhDoVao', 'DoChinhXacVao', 'KhoangCachVao', 'ViDoRa', 'KinhDoRa', 'DoChinhXacRa', 'KhoangCachRa', 'CoDieuChinh'], sample: [] },
+    { name: TEN_SHEET.PHIEN_XU_LY_PM, headers: ['PhienID', 'Ngay', 'Loai', 'NguoiChot', 'ThoiGianChot', 'SoViecDaXuLy', 'BaoCao', 'GhiChu', 'SoViecConTon'], sample: [] }
+  ];
+
+  dinhNghia.forEach(function (dn) {
+    var sh = ss.getSheetByName(dn.name);
+    if (!sh) {
+      Logger.log('[V5-SETUP] SẼ TẠO sheet mới: ' + dn.name);
+      ensureSheetSafe_(ss, dn);
+      invalidateSheetCache_(dn.name);
+      baoCao.sheetTaoMoi.push(dn.name);
+      return;
+    }
+    var lastCol = sh.getLastColumn();
+    var hienCo = lastCol > 0
+      ? sh.getRange(1, 1, 1, lastCol).getValues()[0].map(function (h) { return normalizeStr_(h); })
+      : [];
+    var thieu = dn.headers.filter(function (h) { return hienCo.indexOf(h) < 0; });
+    if (thieu.length > 0) Logger.log('[V5-SETUP] SẼ NỐI cột vào CUỐI ' + dn.name + ': ' + thieu.join(', '));
+    ensureSheetSafe_(ss, dn);
+    invalidateSheetCache_(dn.name);
+    thieu.forEach(function (h) { baoCao.cotNoiThem.push(dn.name + '.' + h); });
+  });
+
+  // Seed flags V5 còn thiếu (FALSE - idempotent, không đè flag đã chỉnh)
+  invalidateSheetCache_(TEN_SHEET.CAU_HINH_MODULE);
+  var flagDaCo = {};
+  getSheetDataSafe_(TEN_SHEET.CAU_HINH_MODULE).forEach(function (r) { flagDaCo[normalizeStr_(r.Module)] = true; });
+  ['KPI', 'AttendanceV2', 'SalaryHistory'].forEach(function (m) {
+    if (flagDaCo[m]) return;
+    Logger.log('[V5-SETUP] SẼ SEED flag: ' + m + ' = FALSE');
+    appendRow(TEN_SHEET.CAU_HINH_MODULE, { Module: m, Enable: 'FALSE', GhiChu: 'V5 Production' });
+    baoCao.dongSeed.push('CAU_HINH_MODULE: ' + m + ' = FALSE');
+  });
+
+  // Seed cấu hình chung (chỉ khi chưa có key)
+  invalidateSheetCache_(TEN_SHEET.CAU_HINH_CHUNG);
+  var keyDaCo = {};
+  getSheetData(TEN_SHEET.CAU_HINH_CHUNG).forEach(function (r) { keyDaCo[normalizeStr_(r.Key)] = true; });
+  [
+    ['SoNgayPhepThang', '2', 'V5: số ngày phép hưởng lương mỗi tháng. Không nghỉ hết -> cộng tiền phần còn lại.'],
+    ['CongChuanMacDinh', '26', 'V5: công chuẩn mặc định của tháng khi CAU_HINH_CONG_CHUAN không có dòng riêng.']
+  ].forEach(function (cap) {
+    if (keyDaCo[cap[0]]) return;
+    Logger.log('[V5-SETUP] SẼ SEED cấu hình: ' + cap[0] + ' = ' + cap[1]);
+    appendRow(TEN_SHEET.CAU_HINH_CHUNG, { Key: cap[0], Value: cap[1], GhiChu: cap[2] });
+    baoCao.dongSeed.push('CAU_HINH_CHUNG: ' + cap[0] + ' = ' + cap[1]);
+  });
+
+  Logger.log('[V5-SETUP] KẾT QUẢ: ' + JSON.stringify(baoCao));
+  return baoCao;
+}
+
+// ================== V5 P2: EVENT CHẤM CÔNG BẤT BIẾN ==================
+
+/**
+ * Ghi 1 event chấm công bất biến (chỉ append, không có API sửa/xóa).
+ * - Flag AttendanceV2 tắt (hoặc đọc flag lỗi) -> bỏ qua, chấm công như V4.
+ * - Flag bật: appendRow lỗi sẽ THROW ra ngoài -> checkIn/checkOut trả lỗi hệ thống,
+ *   KHÔNG âm thầm báo chấm công thành công (quyết định Q4).
+ */
+function ghiEventChamCong_(loai, userRow, ngay, gio, viTri, thietBi) {
+  try {
+    var p = buildUserPayload_(userRow);
+    if (!moduleEnabledFor_('AttendanceV2', p)) return;
+  } catch (e) {
+    return; // hạ tầng flag lỗi -> coi như module tắt, không chặn chấm công
+  }
+  appendRow(TEN_SHEET.CHAM_CONG_EVENT, {
+    EventID: 'EV-' + Utilities.formatDate(new Date(), TIMEZONE, 'yyyyMMddHHmmss') + '-' + Math.floor(Math.random() * 900 + 100),
+    UserID: normalizeStr_(userRow.UserID),
+    HoTen: normalizeStr_(userRow.HoTen),
+    PhongBan: normalizeStr_(userRow.PhongBan),
+    Loai: loai,
+    Ngay: ngay,
+    ThoiGian: nowStr_(),
+    ViDo: viTri && viTri.viDo || '',
+    KinhDo: viTri && viTri.kinhDo || '',
+    DoChinhXac: viTri && viTri.doChinhXac || '',
+    KhoangCach: viTri && viTri.khoangCach || '',
+    ThietBi: normalizeStr_(thietBi).slice(0, 120)
+  });
+}
+
+// ================== V5 P1: KPI THEO NGÀY ==================
+
+/** Gộp chỉ tiêu mặc định + số nhập của ngày. */
+function getKPIData_(ngay) {
+  var kq = {};
+  getSheetDataSafe_(TEN_SHEET.CAU_HINH_KPI).forEach(function (r) {
+    if (!isActive_(r.TrangThai)) return;
+    var pb = normalizeStr_(r.PhongBan);
+    if (pb) kq[pb] = { phongBan: pb, chiTieu: Number(r.ChiTieuMacDinh) || 0, thucTe: 0, daNhap: false };
+  });
+  getSheetDataSafe_(TEN_SHEET.KPI_NGAY).forEach(function (r) {
+    if (normalizeDate_(r.Ngay) !== ngay) return;
+    var pb = normalizeStr_(r.PhongBan);
+    if (!pb) return;
+    if (!kq[pb]) kq[pb] = { phongBan: pb, chiTieu: 0, thucTe: 0, daNhap: false };
+    if (normalizeStr_(r.ChiTieu) !== '') kq[pb].chiTieu = Number(r.ChiTieu) || 0;
+    kq[pb].thucTe = Number(r.ThucTe) || 0;
+    kq[pb].daNhap = true;
+  });
+  return Object.keys(kq).sort().map(function (k) { return kq[k]; });
+}
+
+function getKPIToday(userID, ngay) {
+  var ctx = checkModule_('KPI', userID);
+  if (ctx.err) return ctx.err;
+  if (!laQuanLy_(ctx.p)) return { success: false, message: 'Bạn không có quyền xem KPI.' };
+  var n = normalizeDate_(ngay) || todayStr_();
+  return { success: true, message: 'OK', data: { ngay: n, danhSach: getKPIData_(n) } };
+}
+
+/** PM cập nhật số bill thực tế (upsert theo Ngay + PhongBan). data = {userID, ngay, phongBan, thucTe, chiTieu} */
+function updateKPI(data) {
+  var ctx = checkModule_('KPI', data.userID);
+  if (ctx.err) return ctx.err;
+  if (!ctx.p.duocSuaCong && !ctx.p.duocDuyetNghi && !ctx.p.duocSuaCauHinh) {
+    return { success: false, message: 'Bạn không có quyền cập nhật KPI.' };
+  }
+  var ngay = normalizeDate_(data.ngay) || todayStr_();
+  var phongBan = normalizeStr_(data.phongBan);
+  if (!phongBan) return { success: false, message: 'Thiếu phòng ban.' };
+  var thucTe = Number(data.thucTe);
+  if (isNaN(thucTe) || thucTe < 0) return { success: false, message: 'Số bill không hợp lệ.' };
+
+  var sh = getSheet_(TEN_SHEET.KPI_NGAY);
+  var values = sh.getDataRange().getValues();
+  var headers = values[0];
+  var cNgay = headers.indexOf('Ngay'), cPB = headers.indexOf('PhongBan');
+  var cTT = headers.indexOf('ThucTe'), cCT = headers.indexOf('ChiTieu');
+  var cNg = headers.indexOf('NguoiCapNhat'), cTg = headers.indexOf('ThoiGianCapNhat');
+  for (var i = 1; i < values.length; i++) {
+    if (normalizeDate_(values[i][cNgay]) === ngay && normalizeStr_(values[i][cPB]) === phongBan) {
+      sh.getRange(i + 1, cTT + 1).setValue(String(thucTe));
+      if (data.chiTieu !== undefined && data.chiTieu !== '') sh.getRange(i + 1, cCT + 1).setValue(String(Number(data.chiTieu) || 0));
+      sh.getRange(i + 1, cNg + 1).setValue(ctx.p.userID);
+      sh.getRange(i + 1, cTg + 1).setValue(nowStr_());
+      invalidateSheetCache_(TEN_SHEET.KPI_NGAY);
+      return { success: true, message: 'Đã cập nhật KPI ' + phongBan + ': ' + thucTe + ' bill.' };
+    }
+  }
+  appendRow(TEN_SHEET.KPI_NGAY, {
+    Ngay: ngay, PhongBan: phongBan,
+    ChiTieu: (data.chiTieu !== undefined && data.chiTieu !== '') ? String(Number(data.chiTieu) || 0) : '',
+    ThucTe: String(thucTe), NguoiCapNhat: ctx.p.userID, ThoiGianCapNhat: nowStr_()
+  });
+  return { success: true, message: 'Đã ghi KPI ' + phongBan + ': ' + thucTe + ' bill.' };
+}
+
+function getKPIConfig(userID) {
+  var ctx = checkModule_('KPI', userID);
+  if (ctx.err) return ctx.err;
+  if (!laQuanLy_(ctx.p)) return { success: false, message: 'Bạn không có quyền xem cấu hình KPI.' };
+  var list = getSheetDataSafe_(TEN_SHEET.CAU_HINH_KPI).map(function (r) {
+    return { phongBan: normalizeStr_(r.PhongBan), chiTieuMacDinh: Number(r.ChiTieuMacDinh) || 0, trangThai: normalizeStr_(r.TrangThai) };
+  });
+  return { success: true, message: 'OK', data: list };
+}
+
+/** data = {userID, phongBan, chiTieuMacDinh} */
+function updateKPIConfig(data) {
+  var ctx = checkModule_('KPI', data.userID); // RC2: chốt flag - KPI tắt thì không sửa được cấu hình
+  if (ctx.err) return ctx.err;
+  var mgr = checkPermission(data.userID, 'DuocSuaCauHinh');
+  if (!mgr) return { success: false, message: 'Bạn không có quyền sửa cấu hình KPI.' };
+  var phongBan = normalizeStr_(data.phongBan);
+  var chiTieu = Number(data.chiTieuMacDinh);
+  if (!phongBan || isNaN(chiTieu) || chiTieu < 0) return { success: false, message: 'Dữ liệu không hợp lệ.' };
+  var found = updateRowById(TEN_SHEET.CAU_HINH_KPI, 'PhongBan', phongBan, { ChiTieuMacDinh: String(chiTieu) });
+  if (!found) appendRow(TEN_SHEET.CAU_HINH_KPI, { PhongBan: phongBan, ChiTieuMacDinh: String(chiTieu), TrangThai: 'Active' });
+  return { success: true, message: 'Đã đặt chỉ tiêu mặc định ' + phongBan + ' = ' + chiTieu + ' bill/ngày.' };
+}
+
+// ================== V5 P1: DASHBOARD PM (1 màn cho 5 việc) + CHỐT NGÀY ==================
+
+/** Gom danh sách "cần xử lý" chuẩn hóa - dùng chung cho Dashboard PM, chotNgay, dashboard chủ. */
+function gomViecCanXuLy_(p) {
+  var viec = [];
+  if (p.duocDuyetNghi) {
+    getSheetData(TEN_SHEET.LICH_NGHI).forEach(function (r) {
+      var tt = normalizeStr_(r.TrangThai);
+      if (tt !== TRANG_THAI.CHO_DUYET && tt !== TRANG_THAI.YEU_CAU_DAC_BIET) return;
+      viec.push({ loai: 'nghi', id: normalizeStr_(r.LeaveID), moTa: normalizeStr_(r.HoTen) + ' xin nghỉ ' + normalizeStr_(r.CaNghi) + ' ' + normalizeDate_(r.NgayNghi) + (tt === TRANG_THAI.YEU_CAU_DAC_BIET ? ' (đặc biệt)' : '') + ' - ' + normalizeStr_(r.LyDo) });
+    });
+  }
+  if (p.duocSuaCong) {
+    getSheetDataSafe_(TEN_SHEET.TANG_CA).forEach(function (r) {
+      if (normalizeStr_(r.TrangThai) !== TT_TANG_CA.CHO_DUYET) return;
+      viec.push({ loai: 'tangca', id: normalizeStr_(r.TangCaID), moTa: normalizeStr_(r.HoTen) + ' tăng ca ' + normalizeDate_(r.Ngay) + ' (' + (Number(r.SoGioTangCa) || 0) + 'h) - ' + normalizeStr_(r.LyDo) });
+    });
+    if (moduleEnabledFor_('ShiftRequest', p)) {
+      getSheetDataSafe_(TEN_SHEET.DOI_CA).forEach(function (r) {
+        if (normalizeStr_(r.TrangThai) !== 'Chờ duyệt') return;
+        viec.push({ loai: 'doica', id: normalizeStr_(r.DoiCaID), moTa: normalizeStr_(r.HoTen) + ' xin đổi ca ' + normalizeDate_(r.Ngay) + ' sang ' + normalizeStr_(r.CaDeNghi) + ' - ' + normalizeStr_(r.LyDo) });
+      });
+    }
+    if (moduleEnabledFor_('EarlyLeave', p)) {
+      getSheetDataSafe_(TEN_SHEET.VE_SOM).forEach(function (r) {
+        if (normalizeStr_(r.TrangThai) !== 'Chờ duyệt') return;
+        viec.push({ loai: 'vesom', id: normalizeStr_(r.VeSomID), moTa: normalizeStr_(r.HoTen) + ' xin về sớm ' + normalizeDate_(r.Ngay) + ' từ ' + normalizeStr_(r.GioVeSom) + ' - ' + normalizeStr_(r.LyDo) });
+      });
+    }
+  }
+  if (moduleEnabledFor_('AttendanceV2', p) && laChuXuong_(p.userID)) {
+    getSheetDataSafe_(TEN_SHEET.DIEU_CHINH_CONG).forEach(function (r) {
+      if (normalizeStr_(r.TrangThai) !== 'ChoDuyet') return;
+      viec.push({ loai: 'phieuB', id: normalizeStr_(r.PhieuID), moTa: 'Phiếu đổi công/tiền: ' + normalizeStr_(r.HoTen) + ' ngày ' + normalizeDate_(r.Ngay) + ' - ' + normalizeStr_(r.LyDo) });
+    });
+  }
+  if (moduleEnabledFor_('SalaryHistory', p) && laChuXuong_(p.userID)) {
+    getSheetDataSafe_(TEN_SHEET.QUYET_DINH_NHAN_SU).forEach(function (r) {
+      if (normalizeStr_(r.TrangThai) !== 'ChoDuyet') return;
+      viec.push({ loai: 'quyetdinh', id: normalizeStr_(r.QDID), moTa: 'Quyết định ' + normalizeStr_(r.Loai) + ': ' + normalizeStr_(r.HoTen) + ' - ' + normalizeStr_(r.LyDo) });
+    });
+  }
+  return viec;
+}
+
+/** Tình hình chấm công hôm nay (dùng chung PM dashboard + dashboard chủ). */
+function tinhHinhHomNay_() {
+  var homNay = todayStr_();
+  var ccTheoUser = {};
+  getSheetDataSafe_(TEN_SHEET.CHAM_CONG).forEach(function (r) {
+    if (normalizeDate_(r.Ngay) === homNay) ccTheoUser[normalizeStr_(r.UserID)] = r;
+  });
+  var nghiHomNay = {};
+  getSheetData(TEN_SHEET.LICH_NGHI).forEach(function (r) {
+    if (normalizeDate_(r.NgayNghi) === homNay && normalizeStr_(r.TrangThai) === TRANG_THAI.DA_DUYET) {
+      nghiHomNay[normalizeStr_(r.UserID)] = normalizeStr_(r.CaNghi) + ' - ' + normalizeStr_(r.LoaiNghi);
+    }
+  });
+  var kq = { ngay: homNay, tongActive: 0, daVao: 0, dsDiTre: [], dsNghi: [], dsChuaVao: [], dsChuaRa: [] };
+  getSheetData(TEN_SHEET.USERS).forEach(function (us) {
+    if (!isActive_(us.TrangThai)) return;
+    kq.tongActive++;
+    var id = normalizeStr_(us.UserID);
+    var ten = normalizeStr_(us.HoTen) + ' (' + normalizeStr_(us.PhongBan) + ')';
+    var cc = ccTheoUser[id];
+    if (cc && normalizeStr_(cc.GioVao)) {
+      kq.daVao++;
+      if (isTrue_(cc.DiTre)) kq.dsDiTre.push(ten + ' - trễ ' + (Number(cc.SoPhutTre) || 0) + 'p');
+      if (!normalizeStr_(cc.GioRa)) kq.dsChuaRa.push(ten + ' - vào ' + normalizeStr_(cc.GioVao));
+    } else if (nghiHomNay[id]) {
+      kq.dsNghi.push(ten + ' - ' + nghiHomNay[id]);
+    } else {
+      kq.dsChuaVao.push(ten);
+    }
+  });
+  return kq;
+}
+
+/** MỘT request cho cả Dashboard PM (mục 5 chỉ đạo: PM chỉ cần 1 màn). */
+function getPMDashboard(userID) {
+  var ctx = checkModule_('ReminderCenter', userID);
+  if (ctx.err) return ctx.err;
+  if (!laQuanLy_(ctx.p)) return { success: false, message: 'Bạn không có quyền xem Dashboard PM.' };
+
+  var homNay = todayStr_();
+  var kpi = moduleEnabledFor_('KPI', ctx.p) ? getKPIData_(homNay) : null;
+  var viec = gomViecCanXuLy_(ctx.p);
+  var homNayTH = tinhHinhHomNay_();
+
+  // Nhắc: hết thử việc (flag Probation) + đến kỳ tăng lương (flag SalaryHistory)
+  var nhac = [];
+  if (moduleEnabledFor_('Probation', ctx.p)) {
+    getSheetDataSafe_(TEN_SHEET.NHAN_VIEN).forEach(function (r) {
+      if (normalizeStr_(r.TrangThaiLamViec) !== 'Đang làm') return;
+      var kt = normalizeDate_(r.NgayKetThucThuViec);
+      if (!isValidDateStr_(kt)) return;
+      var con = dateDiffDays_(homNay, kt);
+      if (con <= 7) nhac.push('📋 ' + normalizeStr_(r.HoTen) + ' hết thử việc ' + (con < 0 ? 'QUÁ HẠN ' + (-con) + ' ngày' : con === 0 ? 'HÔM NAY' : 'còn ' + con + ' ngày'));
+    });
+  }
+  if (moduleEnabledFor_('SalaryHistory', ctx.p)) {
+    getSalaryReviewDue_().forEach(function (x) {
+      nhac.push('💰 ' + x.hoTen + ' đến kỳ xét tăng lương ' + (x.conNgay < 0 ? '(QUÁ HẠN ' + (-x.conNgay) + ' ngày)' : x.conNgay === 0 ? 'HÔM NAY' : '(còn ' + x.conNgay + ' ngày)'));
+    });
+  }
+
+  var daChot = getSheetDataSafe_(TEN_SHEET.PHIEN_XU_LY_PM).some(function (r) {
+    return normalizeDate_(r.Ngay) === homNay;
+  });
+
+  return {
+    success: true, message: 'OK',
+    data: { ngay: homNay, kpi: kpi, canXuLy: viec, homNay: homNayTH, nhacNho: nhac, daChotHomNay: daChot }
+  };
+}
+
+/**
+ * Chốt ngày (MỘT nút - quyết định C4 mặc định): ghi nhận đã rà soát + báo cáo + việc tồn.
+ * KHÔNG khóa dữ liệu. Còn việc -> bắt buộc lý do (giữ quy tắc V4 Q8).
+ */
+function chotNgay(data) {
+  var ctx = checkModule_('ReminderCenter', data.userID);
+  if (ctx.err) return ctx.err;
+  if (!laQuanLy_(ctx.p)) return { success: false, message: 'Bạn không có quyền chốt ngày.' };
+
+  var viec = gomViecCanXuLy_(ctx.p);
+  var th = tinhHinhHomNay_();
+  var soTon = viec.length + th.dsChuaRa.length;
+  var lyDoTon = normalizeStr_(data.lyDoTon);
+  if (soTon > 0 && !lyDoTon) {
+    return {
+      success: false,
+      message: 'Còn ' + soTon + ' việc chưa xử lý (' + viec.length + ' đơn chờ + ' + th.dsChuaRa.length + ' người chưa checkout). Nhập lý do để "Chốt còn tồn".',
+      data: { needLyDo: true, soTon: soTon }
+    };
+  }
+
+  var baoCao = 'CHỐT NGÀY ' + th.ngay +
+    ' | Đi làm ' + th.daVao + '/' + th.tongActive +
+    ' | Trễ ' + th.dsDiTre.length +
+    ' | Nghỉ ' + th.dsNghi.length +
+    ' | Chưa vào ' + th.dsChuaVao.length +
+    ' | Chưa ra ' + th.dsChuaRa.length +
+    ' | Đơn còn chờ ' + viec.length;
+
+  appendRow(TEN_SHEET.PHIEN_XU_LY_PM, {
+    PhienID: 'PH-' + Utilities.formatDate(new Date(), TIMEZONE, 'yyyyMMddHHmmss') + '-' + Math.floor(Math.random() * 900 + 100),
+    Ngay: th.ngay, Loai: 'NGAY',
+    NguoiChot: ctx.p.userID, ThoiGianChot: nowStr_(),
+    SoViecConTon: String(soTon), BaoCao: baoCao, GhiChu: lyDoTon
+  });
+  return { success: true, message: soTon > 0 ? 'Đã chốt ngày (còn tồn ' + soTon + ' việc, đã ghi lý do).' : 'Đã chốt ngày - sạch việc. 🎉', data: { baoCao: baoCao } };
+}
+
+// ================== V5 P1: ĐỔI CA THEO NGÀY ==================
+
+function buildDoiCaPayload_(r) {
+  return {
+    doiCaID: normalizeStr_(r.DoiCaID), userID: normalizeStr_(r.UserID), hoTen: normalizeStr_(r.HoTen),
+    phongBan: normalizeStr_(r.PhongBan), ngay: normalizeDate_(r.Ngay), caDeNghi: normalizeStr_(r.CaDeNghi),
+    gioBatDau: normalizeStr_(r.GioBatDau), gioKetThuc: normalizeStr_(r.GioKetThuc),
+    lyDo: normalizeStr_(r.LyDo), trangThai: normalizeStr_(r.TrangThai),
+    nguoiDuyet: normalizeStr_(r.NguoiDuyet), thoiGianDuyet: normalizeStr_(r.ThoiGianDuyet),
+    lyDoTuChoi: normalizeStr_(r.LyDoTuChoi), thoiGianTao: normalizeStr_(r.ThoiGianTao)
+  };
+}
+
+/** NV gửi yêu cầu đổi ca 1 ngày. data = {userID, ngay, caDeNghi, gioBatDau, gioKetThuc, lyDo} */
+function submitShiftChange(data) {
+  var ctx = checkModule_('ShiftRequest', data.userID);
+  if (ctx.err) return ctx.err;
+  var ngay = normalizeDate_(data.ngay);
+  if (!isValidDateStr_(ngay) || ngay < todayStr_()) return { success: false, message: 'Chỉ đổi ca từ hôm nay trở đi.' };
+  var ca = normalizeStr_(data.caDeNghi);
+  if (['SANG', 'CHIEU', 'FULL', 'TUYCHINH'].indexOf(ca) < 0) return { success: false, message: 'Ca đề nghị không hợp lệ.' };
+  if (ca === 'TUYCHINH' && (hhmmToMin_(data.gioBatDau) === null || hhmmToMin_(data.gioKetThuc) === null)) {
+    return { success: false, message: 'Ca tùy chỉnh phải nhập giờ bắt đầu/kết thúc.' };
+  }
+  var lyDo = normalizeStr_(data.lyDo);
+  if (!lyDo) return { success: false, message: 'Vui lòng nhập lý do đổi ca.' };
+  var trung = getSheetDataSafe_(TEN_SHEET.DOI_CA).some(function (r) {
+    return normalizeStr_(r.UserID) === ctx.p.userID && normalizeDate_(r.Ngay) === ngay && normalizeStr_(r.TrangThai) === 'Chờ duyệt';
+  });
+  if (trung) return { success: false, message: 'Bạn đã có yêu cầu đổi ca ngày này đang chờ duyệt.' };
+
+  var id = 'DC-' + Utilities.formatDate(new Date(), TIMEZONE, 'yyyyMMddHHmmss') + '-' + Math.floor(Math.random() * 900 + 100);
+  appendRow(TEN_SHEET.DOI_CA, {
+    DoiCaID: id, UserID: ctx.p.userID, HoTen: ctx.p.hoTen, PhongBan: ctx.p.phongBan,
+    Ngay: ngay, CaDeNghi: ca,
+    GioBatDau: normalizeStr_(data.gioBatDau), GioKetThuc: normalizeStr_(data.gioKetThuc),
+    LyDo: lyDo, TrangThai: 'Chờ duyệt', ThoiGianTao: nowStr_()
+  });
+  return { success: true, message: 'Đã gửi yêu cầu đổi ca ngày ' + ngay + '. Chờ quản lý duyệt.', data: { doiCaID: id } };
+}
+
+function getMyShiftChanges(userID) {
+  var ctx = checkModule_('ShiftRequest', userID);
+  if (ctx.err) return ctx.err;
+  var list = getSheetDataSafe_(TEN_SHEET.DOI_CA)
+    .filter(function (r) { return normalizeStr_(r.UserID) === ctx.p.userID; })
+    .map(buildDoiCaPayload_)
+    .sort(function (a, b) { return a.ngay < b.ngay ? 1 : -1; });
+  return { success: true, message: 'OK', data: list };
+}
+
+function getAllShiftChanges(userID, filters) {
+  var ctx = checkModule_('ShiftRequest', userID);
+  if (ctx.err) return ctx.err;
+  if (!ctx.p.duocSuaCong) return { success: false, message: 'Bạn không có quyền xem đổi ca toàn xưởng.' };
+  var fTT = normalizeStr_((filters || {}).trangThai);
+  var list = getSheetDataSafe_(TEN_SHEET.DOI_CA).map(buildDoiCaPayload_)
+    .filter(function (r) { return !fTT || r.trangThai === fTT; })
+    .sort(function (a, b) { return a.ngay < b.ngay ? 1 : -1; });
+  return { success: true, message: 'OK', data: list };
+}
+
+/** PM duyệt: tự ghi 1 dòng LICH_LAM (lịch riêng V3.2) -> chấm công ngày đó tự tính theo ca mới. */
+function approveShiftChange(data) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var ctx = checkModule_('ShiftRequest', data.userID || data.managerUserID);
+    if (ctx.err) return ctx.err;
+    if (!ctx.p.duocSuaCong) return { success: false, message: 'Bạn không có quyền duyệt đổi ca.' };
+
+    var rows = getSheetDataSafe_(TEN_SHEET.DOI_CA);
+    var r = null;
+    for (var i = 0; i < rows.length; i++) {
+      if (normalizeStr_(rows[i].DoiCaID) === normalizeStr_(data.doiCaID)) { r = rows[i]; break; }
+    }
+    if (!r) return { success: false, message: 'Không tìm thấy yêu cầu đổi ca.' };
+    if (normalizeStr_(r.TrangThai) !== 'Chờ duyệt') return { success: false, message: 'Yêu cầu này đã được xử lý.' };
+    var ngay = normalizeDate_(r.Ngay);
+    var chanKhoa = checkKyKhoa_('CONG', ngay); if (chanKhoa) return chanKhoa;
+
+    // Giờ ca mới: TUYCHINH dùng giờ trong đơn; SANG/CHIEU/FULL lấy từ cấu hình ca phòng ban
+    var ca = normalizeStr_(r.CaDeNghi);
+    var bd = normalizeStr_(r.GioBatDau), kt = normalizeStr_(r.GioKetThuc);
+    if (ca !== 'TUYCHINH') {
+      var cfg = getEffectiveShiftCfg_(normalizeStr_(r.PhongBan));
+      if (ca === 'SANG') { bd = cfg.GioVaoSang; kt = cfg.GioRaSang; }
+      else if (ca === 'CHIEU') { bd = cfg.GioVaoChieu; kt = cfg.GioRaChieu; }
+      else { bd = cfg.GioVaoSang; kt = cfg.GioRaChieu; }
+    }
+    var lichLamID = generateLichLamID();
+    appendRow(TEN_SHEET.LICH_LAM, {
+      LichLamID: lichLamID, Ngay: ngay,
+      UserID: normalizeStr_(r.UserID), HoTen: normalizeStr_(r.HoTen), PhongBan: normalizeStr_(r.PhongBan),
+      CaLam: ca === 'TUYCHINH' ? 'FULL' : ca,
+      GioBatDau: bd, GioKetThuc: kt, LaNgayNghi: 'FALSE',
+      GhiChu: 'Đổi ca theo đơn ' + normalizeStr_(r.DoiCaID),
+      NguoiTao: ctx.p.userID, ThoiGianTao: nowStr_(), ThoiGianCapNhat: nowStr_()
+    });
+    updateRowById(TEN_SHEET.DOI_CA, 'DoiCaID', r.DoiCaID, {
+      TrangThai: 'Đã duyệt', NguoiDuyet: ctx.p.userID, ThoiGianDuyet: nowStr_(), LichLamID: lichLamID
+    });
+    writeAttendanceHistory({
+      recordID: normalizeStr_(r.DoiCaID), userID: normalizeStr_(r.UserID), hoTen: normalizeStr_(r.HoTen),
+      hanhDong: 'Duyệt đổi ca', giaTriCu: 'Chờ duyệt', giaTriMoi: ngay + ' -> ' + ca + ' (' + bd + '-' + kt + ')',
+      nguoiThucHien: ctx.p.userID, ghiChu: ''
+    });
+    return { success: true, message: 'Đã duyệt đổi ca ' + normalizeStr_(r.HoTen) + ' ngày ' + ngay + '. Chấm công ngày đó sẽ tự tính theo ca mới.' };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function rejectShiftChange(data) {
+  var ctx = checkModule_('ShiftRequest', data.userID || data.managerUserID);
+  if (ctx.err) return ctx.err;
+  if (!ctx.p.duocSuaCong) return { success: false, message: 'Bạn không có quyền từ chối đổi ca.' };
+  var lyDo = normalizeStr_(data.lyDo);
+  if (!lyDo) return { success: false, message: 'Vui lòng nhập lý do từ chối.' };
+  var rows = getSheetDataSafe_(TEN_SHEET.DOI_CA);
+  for (var i = 0; i < rows.length; i++) {
+    if (normalizeStr_(rows[i].DoiCaID) !== normalizeStr_(data.doiCaID)) continue;
+    if (normalizeStr_(rows[i].TrangThai) !== 'Chờ duyệt') return { success: false, message: 'Yêu cầu này đã được xử lý.' };
+    updateRowById(TEN_SHEET.DOI_CA, 'DoiCaID', data.doiCaID, {
+      TrangThai: 'Từ chối', NguoiDuyet: ctx.p.userID, ThoiGianDuyet: nowStr_(), LyDoTuChoi: lyDo
+    });
+    writeAttendanceHistory({
+      recordID: normalizeStr_(data.doiCaID), userID: normalizeStr_(rows[i].UserID), hoTen: normalizeStr_(rows[i].HoTen),
+      hanhDong: 'Từ chối đổi ca', giaTriCu: 'Chờ duyệt', giaTriMoi: 'Từ chối', nguoiThucHien: ctx.p.userID, ghiChu: lyDo
+    });
+    return { success: true, message: 'Đã từ chối yêu cầu đổi ca.' };
+  }
+  return { success: false, message: 'Không tìm thấy yêu cầu đổi ca.' };
+}
+
+function cancelMyShiftChange(data) {
+  var ctx = checkModule_('ShiftRequest', data.userID);
+  if (ctx.err) return ctx.err;
+  var rows = getSheetDataSafe_(TEN_SHEET.DOI_CA);
+  for (var i = 0; i < rows.length; i++) {
+    if (normalizeStr_(rows[i].DoiCaID) !== normalizeStr_(data.doiCaID)) continue;
+    if (normalizeStr_(rows[i].UserID) !== ctx.p.userID) return { success: false, message: 'Bạn chỉ hủy được yêu cầu của chính mình.' };
+    if (normalizeStr_(rows[i].TrangThai) !== 'Chờ duyệt') return { success: false, message: 'Chỉ hủy được yêu cầu đang chờ duyệt.' };
+    updateRowById(TEN_SHEET.DOI_CA, 'DoiCaID', data.doiCaID, { TrangThai: 'Đã hủy' });
+    return { success: true, message: 'Đã hủy yêu cầu đổi ca.' };
+  }
+  return { success: false, message: 'Không tìm thấy yêu cầu đổi ca.' };
+}
+
+// ================== V5 P1: XIN VỀ SỚM ==================
+
+function buildVeSomPayload_(r) {
+  return {
+    veSomID: normalizeStr_(r.VeSomID), userID: normalizeStr_(r.UserID), hoTen: normalizeStr_(r.HoTen),
+    phongBan: normalizeStr_(r.PhongBan), ngay: normalizeDate_(r.Ngay), gioVeSom: normalizeStr_(r.GioVeSom),
+    lyDo: normalizeStr_(r.LyDo), trangThai: normalizeStr_(r.TrangThai),
+    nguoiDuyet: normalizeStr_(r.NguoiDuyet), thoiGianDuyet: normalizeStr_(r.ThoiGianDuyet),
+    lyDoTuChoi: normalizeStr_(r.LyDoTuChoi), thoiGianTao: normalizeStr_(r.ThoiGianTao)
+  };
+}
+
+/** data = {userID, ngay, gioVeSom, lyDo} */
+function submitEarlyLeave(data) {
+  var ctx = checkModule_('EarlyLeave', data.userID);
+  if (ctx.err) return ctx.err;
+  var ngay = normalizeDate_(data.ngay);
+  if (!isValidDateStr_(ngay) || ngay < todayStr_()) return { success: false, message: 'Chỉ xin về sớm từ hôm nay trở đi.' };
+  if (hhmmToMin_(data.gioVeSom) === null) return { success: false, message: 'Giờ về sớm không hợp lệ (HH:mm).' };
+  var lyDo = normalizeStr_(data.lyDo);
+  if (!lyDo) return { success: false, message: 'Vui lòng nhập lý do.' };
+
+  var id = 'VS-' + Utilities.formatDate(new Date(), TIMEZONE, 'yyyyMMddHHmmss') + '-' + Math.floor(Math.random() * 900 + 100);
+  appendRow(TEN_SHEET.VE_SOM, {
+    VeSomID: id, UserID: ctx.p.userID, HoTen: ctx.p.hoTen, PhongBan: ctx.p.phongBan,
+    Ngay: ngay, GioVeSom: normalizeStr_(data.gioVeSom), LyDo: lyDo,
+    TrangThai: 'Chờ duyệt', ThoiGianTao: nowStr_()
+  });
+  return { success: true, message: 'Đã gửi xin về sớm ' + normalizeStr_(data.gioVeSom) + ' ngày ' + ngay + '. Chờ duyệt.', data: { veSomID: id } };
+}
+
+function getMyEarlyLeaves(userID) {
+  var ctx = checkModule_('EarlyLeave', userID);
+  if (ctx.err) return ctx.err;
+  var list = getSheetDataSafe_(TEN_SHEET.VE_SOM)
+    .filter(function (r) { return normalizeStr_(r.UserID) === ctx.p.userID; })
+    .map(buildVeSomPayload_)
+    .sort(function (a, b) { return a.ngay < b.ngay ? 1 : -1; });
+  return { success: true, message: 'OK', data: list };
+}
+
+function getAllEarlyLeaves(userID, filters) {
+  var ctx = checkModule_('EarlyLeave', userID);
+  if (ctx.err) return ctx.err;
+  if (!ctx.p.duocSuaCong) return { success: false, message: 'Bạn không có quyền xem về sớm toàn xưởng.' };
+  var fTT = normalizeStr_((filters || {}).trangThai);
+  var list = getSheetDataSafe_(TEN_SHEET.VE_SOM).map(buildVeSomPayload_)
+    .filter(function (r) { return !fTT || r.trangThai === fTT; })
+    .sort(function (a, b) { return a.ngay < b.ngay ? 1 : -1; });
+  return { success: true, message: 'OK', data: list };
+}
+
+/** Duyệt: đơn là nguồn sự thật; nếu ĐÃ có dòng chấm công ngày đó thì nối ghi chú đối chiếu. */
+function approveEarlyLeave(data) {
+  var ctx = checkModule_('EarlyLeave', data.userID || data.managerUserID);
+  if (ctx.err) return ctx.err;
+  if (!ctx.p.duocSuaCong) return { success: false, message: 'Bạn không có quyền duyệt về sớm.' };
+  var rows = getSheetDataSafe_(TEN_SHEET.VE_SOM);
+  for (var i = 0; i < rows.length; i++) {
+    if (normalizeStr_(rows[i].VeSomID) !== normalizeStr_(data.veSomID)) continue;
+    if (normalizeStr_(rows[i].TrangThai) !== 'Chờ duyệt') return { success: false, message: 'Đơn này đã được xử lý.' };
+    updateRowById(TEN_SHEET.VE_SOM, 'VeSomID', data.veSomID, {
+      TrangThai: 'Đã duyệt', NguoiDuyet: ctx.p.userID, ThoiGianDuyet: nowStr_()
+    });
+    var cc = findAttendanceRow_(normalizeStr_(rows[i].UserID), normalizeDate_(rows[i].Ngay));
+    if (cc) {
+      updateRowById(TEN_SHEET.CHAM_CONG, 'ChamCongID', cc.ChamCongID, {
+        GhiChuQuanLy: appendGhiChu_(normalizeStr_(cc.GhiChuQuanLy), 'Về sớm CÓ PHÉP từ ' + normalizeStr_(rows[i].GioVeSom) + ' (đơn ' + normalizeStr_(rows[i].VeSomID) + ')')
+      });
+    }
+    writeAttendanceHistory({
+      recordID: normalizeStr_(data.veSomID), userID: normalizeStr_(rows[i].UserID), hoTen: normalizeStr_(rows[i].HoTen),
+      hanhDong: 'Duyệt về sớm', giaTriCu: 'Chờ duyệt', giaTriMoi: 'Đã duyệt từ ' + normalizeStr_(rows[i].GioVeSom),
+      nguoiThucHien: ctx.p.userID, ghiChu: ''
+    });
+    return { success: true, message: 'Đã duyệt về sớm cho ' + normalizeStr_(rows[i].HoTen) + '.' };
+  }
+  return { success: false, message: 'Không tìm thấy đơn về sớm.' };
+}
+
+function rejectEarlyLeave(data) {
+  var ctx = checkModule_('EarlyLeave', data.userID || data.managerUserID);
+  if (ctx.err) return ctx.err;
+  if (!ctx.p.duocSuaCong) return { success: false, message: 'Bạn không có quyền từ chối về sớm.' };
+  var lyDo = normalizeStr_(data.lyDo);
+  if (!lyDo) return { success: false, message: 'Vui lòng nhập lý do từ chối.' };
+  var rows = getSheetDataSafe_(TEN_SHEET.VE_SOM);
+  for (var i = 0; i < rows.length; i++) {
+    if (normalizeStr_(rows[i].VeSomID) !== normalizeStr_(data.veSomID)) continue;
+    if (normalizeStr_(rows[i].TrangThai) !== 'Chờ duyệt') return { success: false, message: 'Đơn này đã được xử lý.' };
+    updateRowById(TEN_SHEET.VE_SOM, 'VeSomID', data.veSomID, {
+      TrangThai: 'Từ chối', NguoiDuyet: ctx.p.userID, ThoiGianDuyet: nowStr_(), LyDoTuChoi: lyDo
+    });
+    return { success: true, message: 'Đã từ chối đơn về sớm.' };
+  }
+  return { success: false, message: 'Không tìm thấy đơn về sớm.' };
+}
+
+function cancelMyEarlyLeave(data) {
+  var ctx = checkModule_('EarlyLeave', data.userID);
+  if (ctx.err) return ctx.err;
+  var rows = getSheetDataSafe_(TEN_SHEET.VE_SOM);
+  for (var i = 0; i < rows.length; i++) {
+    if (normalizeStr_(rows[i].VeSomID) !== normalizeStr_(data.veSomID)) continue;
+    if (normalizeStr_(rows[i].UserID) !== ctx.p.userID) return { success: false, message: 'Bạn chỉ hủy được đơn của chính mình.' };
+    if (normalizeStr_(rows[i].TrangThai) !== 'Chờ duyệt') return { success: false, message: 'Chỉ hủy được đơn đang chờ duyệt.' };
+    updateRowById(TEN_SHEET.VE_SOM, 'VeSomID', data.veSomID, { TrangThai: 'Đã hủy' });
+    return { success: true, message: 'Đã hủy đơn về sớm.' };
+  }
+  return { success: false, message: 'Không tìm thấy đơn về sớm.' };
+}
+
+// ================== V5 P1: NHÂN VIÊN TỰ ĐĂNG KÝ TĂNG CA ==================
+
+/** data = {userID, ngay, gioBatDau, gioKetThuc, lyDo} - vào chung sheet TANG_CA, luồng duyệt cũ. */
+function submitOvertimeRequest(data) {
+  var ctx = checkModule_('Overtime', data.userID);
+  if (ctx.err) return ctx.err;
+  var ngay = normalizeDate_(data.ngay);
+  if (!isValidDateStr_(ngay)) return { success: false, message: 'Ngày không hợp lệ.' };
+  var bd = hhmmToMin_(data.gioBatDau), kt = hhmmToMin_(data.gioKetThuc);
+  if (bd === null || kt === null || kt <= bd) return { success: false, message: 'Giờ bắt đầu/kết thúc không hợp lệ.' };
+  var lyDo = normalizeStr_(data.lyDo);
+  if (!lyDo) return { success: false, message: 'Vui lòng nhập lý do tăng ca.' };
+  var soGio = roundWorkHours((kt - bd) / 60, getAttendanceConfigValues().LamTronGioCong);
+
+  var id = generateOvertimeID();
+  appendRow(TEN_SHEET.TANG_CA, {
+    TangCaID: id,
+    UserID: ctx.p.userID, HoTen: ctx.p.hoTen, PhongBan: ctx.p.phongBan,
+    Ngay: ngay, GioBatDau: normalizeStr_(data.gioBatDau), GioKetThuc: normalizeStr_(data.gioKetThuc),
+    SoGioTangCa: String(soGio), LyDo: lyDo,
+    TrangThai: TT_TANG_CA.CHO_DUYET, GhiChu: 'Nhân viên tự đăng ký'
+  });
+  return { success: true, message: 'Đã đăng ký tăng ca ' + soGio + 'h ngày ' + ngay + '. Chờ quản lý duyệt.', data: { tangCaID: id } };
+}
+
+function cancelMyOvertime(data) {
+  var ctx = checkModule_('Overtime', data.userID);
+  if (ctx.err) return ctx.err;
+  var r = timTangCa_(data.tangCaID);
+  if (!r) return { success: false, message: 'Không tìm thấy đăng ký tăng ca.' };
+  if (normalizeStr_(r.UserID) !== ctx.p.userID) return { success: false, message: 'Bạn chỉ hủy được đăng ký của chính mình.' };
+  if (normalizeStr_(r.TrangThai) !== TT_TANG_CA.CHO_DUYET) return { success: false, message: 'Chỉ hủy được đăng ký đang chờ duyệt.' };
+  updateRowById(TEN_SHEET.TANG_CA, 'TangCaID', data.tangCaID, { TrangThai: TT_TANG_CA.DA_HUY });
+  return { success: true, message: 'Đã hủy đăng ký tăng ca.' };
+}
+
+// ================== V5 P2: PHIẾU ĐIỀU CHỈNH CÔNG 2 CẤP (Q1) ==================
+
+// Cấp A (không đổi tiền): PM tạo là hiệu lực ngay. Cấp B (đổi tiền): chủ xưởng duyệt.
+var DC_CAP_A = ['BuCheckin', 'BuCheckout', 'MienDiTre', 'MienVeSom', 'GhiChu'];
+var DC_CAP_B = ['BoSungCong', 'DieuChinhOT'];
+// Tên hiển thị lời thường (mục 9 chỉ đạo)
+var DC_TEN = {
+  BuCheckin: 'Bù giờ vào (quên chấm)', BuCheckout: 'Bù giờ ra (quên chấm)',
+  MienDiTre: 'Miễn ghi nhận đi trễ', MienVeSom: 'Miễn ghi nhận về sớm',
+  GhiChu: 'Ghi chú xác minh',
+  BoSungCong: 'Đặt lại giờ công của ngày (đổi tiền)', DieuChinhOT: 'Điều chỉnh giờ tăng ca (đổi tiền)'
+};
+
+function buildPhieuDCPayload_(r) {
+  return {
+    phieuID: normalizeStr_(r.PhieuID), userID: normalizeStr_(r.UserID), hoTen: normalizeStr_(r.HoTen),
+    ngay: normalizeDate_(r.Ngay), capDo: normalizeStr_(r.CapDo), loai: normalizeStr_(r.Loai),
+    tenLoai: DC_TEN[normalizeStr_(r.Loai)] || normalizeStr_(r.Loai),
+    giaTriCu: normalizeStr_(r.GiaTriCu), giaTriMoi: normalizeStr_(r.GiaTriMoi),
+    lyDo: normalizeStr_(r.LyDo), nguoiTao: normalizeStr_(r.NguoiTao), thoiGianTao: normalizeStr_(r.ThoiGianTao),
+    nguoiDuyet: normalizeStr_(r.NguoiDuyet), thoiGianDuyet: normalizeStr_(r.ThoiGianDuyet),
+    trangThai: normalizeStr_(r.TrangThai), ghiChu: normalizeStr_(r.GhiChu)
+  };
+}
+
+/** Áp 1 phiếu hiệu lực vào bảng công ngày (CHAM_CONG). Tạo dòng nếu chưa có. */
+function apDungPhieuDC_(phieu, nguoiThucHien) {
+  var uid = normalizeStr_(phieu.UserID);
+  var ngay = normalizeDate_(phieu.Ngay);
+  var loai = normalizeStr_(phieu.Loai);
+  var giaTriMoi = normalizeStr_(phieu.GiaTriMoi);
+  var target = getUserById(uid);
+  var cc = findAttendanceRow_(uid, ngay);
+
+  if (!cc) {
+    var ccID = generateChamCongID();
+    appendRow(TEN_SHEET.CHAM_CONG, {
+      ChamCongID: ccID, UserID: uid,
+      HoTen: target ? normalizeStr_(target.HoTen) : normalizeStr_(phieu.HoTen),
+      PhongBan: target ? normalizeStr_(target.PhongBan) : '',
+      Ngay: ngay, SoGioLam: '0', DiTre: 'FALSE', SoPhutTre: '0',
+      VeSom: 'FALSE', SoPhutVeSom: '0', TangCa: 'FALSE', SoGioTangCa: '0',
+      TrangThai: 'Quản lý chỉnh', ThoiGianTao: nowStr_(), ThoiGianCapNhat: nowStr_()
+    });
+    invalidateSheetCache_(TEN_SHEET.CHAM_CONG);
+    cc = findAttendanceRow_(uid, ngay);
+  }
+
+  var update = { CoDieuChinh: 'TRUE', NguoiSuaCuoi: nguoiThucHien, ThoiGianCapNhat: nowStr_() };
+  if (loai === 'BuCheckin' || loai === 'BuCheckout') {
+    var gioVao = loai === 'BuCheckin' ? giaTriMoi : normalizeStr_(cc.GioVao);
+    var gioRa = loai === 'BuCheckout' ? giaTriMoi : normalizeStr_(cc.GioRa);
+    update[loai === 'BuCheckin' ? 'GioVao' : 'GioRa'] = giaTriMoi;
+    if (gioVao && gioRa) {
+      var kq = calcAttendanceForUser_(uid, normalizeStr_(cc.PhongBan), ngay, gioVao, gioRa);
+      update.CaLam = kq.caLam;
+      update.SoGioLam = String(kq.soGioLam);
+      update.DiTre = kq.diTre ? 'TRUE' : 'FALSE';
+      update.SoPhutTre = String(kq.soPhutTre);
+      update.VeSom = kq.veSom ? 'TRUE' : 'FALSE';
+      update.SoPhutVeSom = String(kq.soPhutVeSom);
+      update.TangCa = kq.tangCa ? 'TRUE' : 'FALSE';
+      update.SoGioTangCa = String(kq.soGioTangCa);
+      update.TrangThai = 'Quản lý chỉnh';
+    }
+  } else if (loai === 'MienDiTre') {
+    update.DiTre = 'FALSE'; update.SoPhutTre = '0';
+  } else if (loai === 'MienVeSom') {
+    update.VeSom = 'FALSE'; update.SoPhutVeSom = '0';
+  } else if (loai === 'GhiChu') {
+    update.GhiChuQuanLy = appendGhiChu_(normalizeStr_(cc.GhiChuQuanLy), giaTriMoi);
+  } else if (loai === 'BoSungCong') {
+    update.SoGioLam = String(Number(giaTriMoi) || 0);
+    update.TrangThai = 'Quản lý chỉnh';
+  } else if (loai === 'DieuChinhOT') {
+    var otMoi = Number(giaTriMoi) || 0;
+    update.SoGioTangCa = String(otMoi);
+    update.TangCa = otMoi > 0 ? 'TRUE' : 'FALSE';
+  }
+  updateRowById(TEN_SHEET.CHAM_CONG, 'ChamCongID', cc.ChamCongID, update);
+}
+
+/**
+ * Tạo phiếu điều chỉnh. data = {userID, targetUserID, ngay, loai, giaTriMoi, lyDo}
+ * Cấp A -> hiệu lực ngay. Cấp B -> chờ chủ xưởng duyệt.
+ */
+function createAdjustment(data) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var ctx = checkModule_('AttendanceV2', data.userID);
+    if (ctx.err) return ctx.err;
+    if (!ctx.p.duocSuaCong) return { success: false, message: 'Bạn không có quyền tạo phiếu sửa công.' };
+
+    var target = getUserById(data.targetUserID);
+    if (!target) return { success: false, message: 'Không tìm thấy nhân viên.' };
+    var ngay = normalizeDate_(data.ngay);
+    if (!isValidDateStr_(ngay)) return { success: false, message: 'Ngày không hợp lệ.' };
+    var chanKhoa = checkKyKhoa_('CONG', ngay); if (chanKhoa) return chanKhoa;
+
+    var loai = normalizeStr_(data.loai);
+    var capDo = DC_CAP_A.indexOf(loai) >= 0 ? 'A' : (DC_CAP_B.indexOf(loai) >= 0 ? 'B' : '');
+    if (!capDo) return { success: false, message: 'Loại điều chỉnh không hợp lệ.' };
+    var giaTriMoi = normalizeStr_(data.giaTriMoi);
+    if ((loai === 'BuCheckin' || loai === 'BuCheckout') && hhmmToMin_(giaTriMoi) === null) {
+      return { success: false, message: 'Giờ mới không hợp lệ (HH:mm).' };
+    }
+    if ((loai === 'BoSungCong' || loai === 'DieuChinhOT') && (isNaN(Number(giaTriMoi)) || Number(giaTriMoi) < 0)) {
+      return { success: false, message: 'Số giờ mới không hợp lệ.' };
+    }
+    if (loai === 'GhiChu' && !giaTriMoi) return { success: false, message: 'Nhập nội dung ghi chú.' };
+    var lyDo = normalizeStr_(data.lyDo);
+    if (!lyDo) return { success: false, message: 'Vui lòng nhập lý do (bắt buộc, sẽ lưu lịch sử).' };
+
+    // Giá trị cũ để đối chiếu lịch sử
+    var cc = findAttendanceRow_(normalizeStr_(target.UserID), ngay);
+    var giaTriCu = cc
+      ? 'Vào ' + (normalizeStr_(cc.GioVao) || '--') + ' / Ra ' + (normalizeStr_(cc.GioRa) || '--') +
+        ' / ' + (Number(cc.SoGioLam) || 0) + 'h / OT ' + (Number(cc.SoGioTangCa) || 0) + 'h' +
+        (isTrue_(cc.DiTre) ? ' / trễ ' + cc.SoPhutTre + 'p' : '') + (isTrue_(cc.VeSom) ? ' / sớm ' + cc.SoPhutVeSom + 'p' : '')
+      : '(chưa có dòng chấm công)';
+
+    var id = 'DC5-' + Utilities.formatDate(new Date(), TIMEZONE, 'yyyyMMddHHmmss') + '-' + Math.floor(Math.random() * 900 + 100);
+    var phieu = {
+      PhieuID: id, UserID: normalizeStr_(target.UserID), HoTen: normalizeStr_(target.HoTen),
+      Ngay: ngay, CapDo: capDo, Loai: loai, GiaTriCu: giaTriCu, GiaTriMoi: giaTriMoi,
+      LyDo: lyDo, NguoiTao: ctx.p.userID, ThoiGianTao: nowStr_(),
+      TrangThai: capDo === 'A' ? 'HieuLuc' : 'ChoDuyet',
+      NguoiDuyet: capDo === 'A' ? ctx.p.userID : '', ThoiGianDuyet: capDo === 'A' ? nowStr_() : ''
+    };
+    appendRow(TEN_SHEET.DIEU_CHINH_CONG, phieu);
+    if (capDo === 'A') apDungPhieuDC_(phieu, ctx.p.userID);
+
+    writeAttendanceHistory({
+      recordID: id, userID: normalizeStr_(target.UserID), hoTen: normalizeStr_(target.HoTen),
+      hanhDong: (capDo === 'A' ? 'Sửa công (không đổi tiền)' : 'Đề xuất đổi công/tiền') + ': ' + (DC_TEN[loai] || loai),
+      giaTriCu: giaTriCu, giaTriMoi: giaTriMoi, nguoiThucHien: ctx.p.userID, ghiChu: lyDo
+    });
+
+    return {
+      success: true,
+      message: capDo === 'A'
+        ? 'Đã sửa công cho ' + normalizeStr_(target.HoTen) + ' (có lưu lịch sử).'
+        : 'Phiếu đổi công/tiền đã gửi - chờ CHỦ XƯỞNG duyệt mới có hiệu lực.',
+      data: { phieuID: id, capDo: capDo }
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function getAdjustments(userID, filters) {
+  var ctx = checkModule_('AttendanceV2', userID);
+  if (ctx.err) return ctx.err;
+  var laQL = ctx.p.duocSuaCong || laChuXuong_(ctx.p.userID);
+  var fTT = normalizeStr_((filters || {}).trangThai);
+  var list = getSheetDataSafe_(TEN_SHEET.DIEU_CHINH_CONG)
+    .map(buildPhieuDCPayload_)
+    .filter(function (r) {
+      if (!laQL && r.userID !== ctx.p.userID) return false; // NV chỉ thấy phiếu của mình
+      if (fTT && r.trangThai !== fTT) return false;
+      return true;
+    })
+    .sort(function (a, b) { return a.thoiGianTao < b.thoiGianTao ? 1 : -1; });
+  return { success: true, message: 'OK', data: list };
+}
+
+/** Chủ xưởng duyệt phiếu cấp B -> áp vào bảng công. */
+function approveAdjustment(data) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var ctx = checkModule_('AttendanceV2', data.userID);
+    if (ctx.err) return ctx.err;
+    if (!laChuXuong_(ctx.p.userID)) return loiQuyenChuXuong_();
+
+    var rows = getSheetDataSafe_(TEN_SHEET.DIEU_CHINH_CONG);
+    for (var i = 0; i < rows.length; i++) {
+      if (normalizeStr_(rows[i].PhieuID) !== normalizeStr_(data.phieuID)) continue;
+      if (normalizeStr_(rows[i].TrangThai) !== 'ChoDuyet') return { success: false, message: 'Phiếu này đã được xử lý.' };
+      var chanKhoa = checkKyKhoa_('CONG', normalizeDate_(rows[i].Ngay)); if (chanKhoa) return chanKhoa;
+      var ghiChu2Vai = normalizeStr_(rows[i].NguoiTao) === ctx.p.userID ? 'Chủ xưởng tạo và tự duyệt (ghi rõ 2 vai)' : '';
+      updateRowById(TEN_SHEET.DIEU_CHINH_CONG, 'PhieuID', data.phieuID, {
+        TrangThai: 'HieuLuc', NguoiDuyet: ctx.p.userID, ThoiGianDuyet: nowStr_(),
+        GhiChu: appendGhiChu_(normalizeStr_(rows[i].GhiChu), ghiChu2Vai)
+      });
+      apDungPhieuDC_(rows[i], ctx.p.userID);
+      writeAttendanceHistory({
+        recordID: normalizeStr_(data.phieuID), userID: normalizeStr_(rows[i].UserID), hoTen: normalizeStr_(rows[i].HoTen),
+        hanhDong: 'Duyệt phiếu đổi công/tiền', giaTriCu: 'ChoDuyet', giaTriMoi: 'HieuLuc',
+        nguoiThucHien: ctx.p.userID, ghiChu: ghiChu2Vai
+      });
+      return { success: true, message: 'Đã duyệt phiếu - đã áp vào bảng công.' };
+    }
+    return { success: false, message: 'Không tìm thấy phiếu.' };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function rejectAdjustment(data) {
+  var ctx = checkModule_('AttendanceV2', data.userID);
+  if (ctx.err) return ctx.err;
+  if (!laChuXuong_(ctx.p.userID)) return loiQuyenChuXuong_();
+  var lyDo = normalizeStr_(data.lyDo);
+  if (!lyDo) return { success: false, message: 'Vui lòng nhập lý do từ chối.' };
+  var rows = getSheetDataSafe_(TEN_SHEET.DIEU_CHINH_CONG);
+  for (var i = 0; i < rows.length; i++) {
+    if (normalizeStr_(rows[i].PhieuID) !== normalizeStr_(data.phieuID)) continue;
+    if (normalizeStr_(rows[i].TrangThai) !== 'ChoDuyet') return { success: false, message: 'Phiếu này đã được xử lý.' };
+    updateRowById(TEN_SHEET.DIEU_CHINH_CONG, 'PhieuID', data.phieuID, {
+      TrangThai: 'TuChoi', NguoiDuyet: ctx.p.userID, ThoiGianDuyet: nowStr_(), GhiChu: 'Từ chối: ' + lyDo
+    });
+    return { success: true, message: 'Đã từ chối phiếu.' };
+  }
+  return { success: false, message: 'Không tìm thấy phiếu.' };
+}
+
+/** Vô hiệu phiếu đã hiệu lực (chủ xưởng). KHÔNG tự hoàn tác dữ liệu - tạo phiếu ngược nếu cần sửa lại. */
+function voidAdjustment(data) {
+  var ctx = checkModule_('AttendanceV2', data.userID);
+  if (ctx.err) return ctx.err;
+  if (!laChuXuong_(ctx.p.userID)) return loiQuyenChuXuong_();
+  var lyDo = normalizeStr_(data.lyDo);
+  if (!lyDo) return { success: false, message: 'Vui lòng nhập lý do vô hiệu.' };
+  var rows = getSheetDataSafe_(TEN_SHEET.DIEU_CHINH_CONG);
+  for (var i = 0; i < rows.length; i++) {
+    if (normalizeStr_(rows[i].PhieuID) !== normalizeStr_(data.phieuID)) continue;
+    if (normalizeStr_(rows[i].TrangThai) !== 'HieuLuc') return { success: false, message: 'Chỉ vô hiệu được phiếu đang hiệu lực.' };
+    updateRowById(TEN_SHEET.DIEU_CHINH_CONG, 'PhieuID', data.phieuID, {
+      TrangThai: 'VoHieu', NguoiVoHieu: ctx.p.userID, ThoiGianVoHieu: nowStr_(), LyDoVoHieu: lyDo
+    });
+    writeAttendanceHistory({
+      recordID: normalizeStr_(data.phieuID), userID: normalizeStr_(rows[i].UserID), hoTen: normalizeStr_(rows[i].HoTen),
+      hanhDong: 'Vô hiệu phiếu điều chỉnh', giaTriCu: 'HieuLuc', giaTriMoi: 'VoHieu',
+      nguoiThucHien: ctx.p.userID, ghiChu: lyDo + ' | LƯU Ý: dữ liệu công KHÔNG tự hoàn tác - tạo phiếu ngược nếu cần sửa lại.'
+    });
+    return { success: true, message: 'Đã vô hiệu phiếu. Lưu ý: bảng công không tự hoàn tác - tạo phiếu mới nếu cần chỉnh lại.' };
+  }
+  return { success: false, message: 'Không tìm thấy phiếu.' };
+}
+
+// ================== V5 P3: LỊCH SỬ LƯƠNG + QUYẾT ĐỊNH NHÂN SỰ ==================
+
+/** Cộng n tháng vào 'yyyy-MM-dd' (kẹp cuối tháng). */
+function addMonthsStr_(ngayStr, n) {
+  var p = String(ngayStr).split('-');
+  var d = new Date(Number(p[0]), Number(p[1]) - 1 + n, Number(p[2]));
+  // Kẹp: nếu ngày bị tràn sang tháng sau (VD 31/01 + 1 tháng), lùi về cuối tháng đích
+  if (d.getDate() !== Number(p[2])) d = new Date(d.getFullYear(), d.getMonth(), 0);
+  return Utilities.formatDate(d, TIMEZONE, 'yyyy-MM-dd');
+}
+
+/** Bản ghi lương hiệu lực tại 1 ngày (null nếu không có). */
+function timBanGhiLuong_(userID, ngay) {
+  var tot = null;
+  getSheetDataSafe_(TEN_SHEET.LICH_SU_LUONG).forEach(function (r) {
+    if (normalizeStr_(r.UserID) !== normalizeStr_(userID)) return;
+    var tu = normalizeDate_(r.HieuLucTu);
+    var den = normalizeDate_(r.HieuLucDen);
+    if (!isValidDateStr_(tu) || tu > ngay) return;
+    if (den && den < ngay) return;
+    if (!tot || tu > normalizeDate_(tot.HieuLucTu)) tot = r;
+  });
+  return tot;
+}
+
+/**
+ * Lương áp dụng của 1 người tại 1 ngày:
+ * ưu tiên LICH_SU_LUONG (khi flag SalaryHistory bật), fallback hồ sơ NHAN_VIEN.
+ */
+function getLuongApDung_(userID, ngay) {
+  if (getModuleState_('SalaryHistory') !== 'FALSE') {
+    var r = timBanGhiLuong_(userID, ngay);
+    if (r) {
+      return {
+        luongThang: parseMoney_(r.LuongApDung), luongTheoGio: parseMoney_(r.LuongTheoGio),
+        phuCapCoDinh: parseMoney_(r.PhuCapCoDinh), tyLe: Number(r.TyLe) || 100, nguon: 'LICH_SU_LUONG'
+      };
+    }
+  }
+  var nv = findEmployeeRow_(userID);
+  var p = nv ? buildEmployeePayload_(nv) : { luongCoBan: 0, luongTheoGio: 0, phuCapCoDinh: 0 };
+  return { luongThang: p.luongCoBan, luongTheoGio: p.luongTheoGio, phuCapCoDinh: p.phuCapCoDinh, tyLe: 100, nguon: 'NHAN_VIEN' };
+}
+
+/** Thêm bản ghi lương MỚI (append-only): đóng HieuLucDen bản hiện hành, không ghi đè. */
+function themBanGhiLuong_(target, obj) {
+  var uid = normalizeStr_(target.UserID);
+  var hieuLucTu = normalizeDate_(obj.hieuLucTu);
+  // Đóng bản đang hiện hành (HieuLucDen rỗng) bắt đầu trước bản mới
+  getSheetDataSafe_(TEN_SHEET.LICH_SU_LUONG).forEach(function (r) {
+    if (normalizeStr_(r.UserID) !== uid) return;
+    if (normalizeStr_(r.HieuLucDen)) return;
+    if (normalizeDate_(r.HieuLucTu) >= hieuLucTu) return;
+    updateRowById(TEN_SHEET.LICH_SU_LUONG, 'LuongID', r.LuongID, { HieuLucDen: addDaysStr_(hieuLucTu, -1) });
+  });
+  var tyLe = Number(obj.tyLe) || 100;
+  var chinhThuc = parseMoney_(obj.luongChinhThuc);
+  var id = 'LG-' + Utilities.formatDate(new Date(), TIMEZONE, 'yyyyMMddHHmmss') + '-' + Math.floor(Math.random() * 900 + 100);
+  appendRow(TEN_SHEET.LICH_SU_LUONG, {
+    LuongID: id, UserID: uid, HoTen: normalizeStr_(target.HoTen),
+    LuongChinhThuc: String(chinhThuc), TyLe: String(tyLe),
+    LuongApDung: String(Math.round(chinhThuc * tyLe / 100)), // hệ tự tính - không nhập tay
+    LuongTheoGio: String(parseMoney_(obj.luongTheoGio)),
+    PhuCapCoDinh: String(parseMoney_(obj.phuCapCoDinh)),
+    HieuLucTu: hieuLucTu, HieuLucDen: '',
+    LyDo: normalizeStr_(obj.lyDo), QuyetDinhID: normalizeStr_(obj.qdID),
+    NguoiDuyet: normalizeStr_(obj.nguoiDuyet), ThoiGianTao: nowStr_()
+  });
+  return id;
+}
+
+var DS_LOAI_QD = ['ChinhThuc', 'GiaHanThuViec', 'TangLuong', 'GiamLuong', 'DieuChinhPhuCap', 'ChuyenPhongBan', 'DoiChucVu', 'DoiCaMacDinh', 'TamNghi', 'NghiViec'];
+var QD_TEN = {
+  ChinhThuc: 'Chuyển chính thức', GiaHanThuViec: 'Gia hạn thử việc', TangLuong: 'Tăng lương',
+  GiamLuong: 'Giảm lương', DieuChinhPhuCap: 'Điều chỉnh phụ cấp', ChuyenPhongBan: 'Chuyển phòng ban',
+  DoiChucVu: 'Đổi chức vụ', DoiCaMacDinh: 'Đổi ca mặc định', TamNghi: 'Tạm nghỉ', NghiViec: 'Nghỉ việc'
+};
+
+/**
+ * PM đề xuất quyết định nhân sự. data = {userID, targetUserID, loai, hieuLucTu, lyDo,
+ *   luongChinhThuc, tyLe, luongTheoGio, phuCapCoDinh, noiDungMoi}
+ * Các trường lương chỉ dùng cho loại liên quan lương.
+ */
+function createDecision(data) {
+  var ctx = checkModule_('SalaryHistory', data.userID);
+  if (ctx.err) return ctx.err;
+  if (!laQuanLy_(ctx.p)) return { success: false, message: 'Bạn không có quyền đề xuất quyết định.' };
+
+  var target = getUserById(data.targetUserID);
+  if (!target) return { success: false, message: 'Không tìm thấy nhân viên.' };
+  var loai = normalizeStr_(data.loai);
+  if (DS_LOAI_QD.indexOf(loai) < 0) return { success: false, message: 'Loại quyết định không hợp lệ.' };
+  var hieuLucTu = normalizeDate_(data.hieuLucTu);
+  if (!isValidDateStr_(hieuLucTu)) return { success: false, message: 'Ngày hiệu lực không hợp lệ.' };
+  var lyDo = normalizeStr_(data.lyDo);
+  if (!lyDo) return { success: false, message: 'Vui lòng nhập lý do.' };
+
+  var noiDungMoi = normalizeStr_(data.noiDungMoi);
+  var lienQuanLuong = ['ChinhThuc', 'TangLuong', 'GiamLuong', 'DieuChinhPhuCap'].indexOf(loai) >= 0;
+  if (lienQuanLuong) {
+    var chinhThuc = parseMoney_(data.luongChinhThuc);
+    if (chinhThuc <= 0 && parseMoney_(data.luongTheoGio) <= 0) {
+      return { success: false, message: 'Nhập mức lương mới (lương tháng hoặc lương giờ).' };
+    }
+    noiDungMoi = JSON.stringify({
+      luongChinhThuc: chinhThuc,
+      tyLe: loai === 'ChinhThuc' ? 100 : (Number(data.tyLe) || 100),
+      luongTheoGio: parseMoney_(data.luongTheoGio),
+      phuCapCoDinh: parseMoney_(data.phuCapCoDinh)
+    });
+  }
+  if (!noiDungMoi) return { success: false, message: 'Nhập nội dung mới của quyết định.' };
+
+  var nvRow = findEmployeeRow_(normalizeStr_(target.UserID));
+  var nvP = nvRow ? buildEmployeePayload_(nvRow) : null;
+  var noiDungCu = nvP
+    ? (lienQuanLuong ? 'Lương hiện tại: CB ' + nvP.luongCoBan + ' / giờ ' + nvP.luongTheoGio + ' / PC ' + nvP.phuCapCoDinh
+      : loai === 'ChuyenPhongBan' ? nvP.phongBan : loai === 'DoiChucVu' ? nvP.chucVu : normalizeStr_(nvRow.TrangThaiLamViec))
+    : '';
+
+  var id = 'QD-' + Utilities.formatDate(new Date(), TIMEZONE, 'yyyyMMddHHmmss') + '-' + Math.floor(Math.random() * 900 + 100);
+  appendRow(TEN_SHEET.QUYET_DINH_NHAN_SU, {
+    QDID: id, UserID: normalizeStr_(target.UserID), HoTen: normalizeStr_(target.HoTen),
+    Loai: loai, NoiDungCu: noiDungCu, NoiDungMoi: noiDungMoi, HieuLucTu: hieuLucTu,
+    LyDo: lyDo, NguoiDeXuat: ctx.p.userID, TrangThai: 'ChoDuyet'
+  });
+  return { success: true, message: 'Đã gửi đề xuất "' + (QD_TEN[loai] || loai) + '" - chờ chủ xưởng duyệt.', data: { qdID: id } };
+}
+
+function getDecisions(userID, filters) {
+  var ctx = checkModule_('SalaryHistory', userID);
+  if (ctx.err) return ctx.err;
+  if (!laQuanLy_(ctx.p)) return { success: false, message: 'Bạn không có quyền xem quyết định.' };
+  var fTT = normalizeStr_((filters || {}).trangThai);
+  var list = getSheetDataSafe_(TEN_SHEET.QUYET_DINH_NHAN_SU)
+    .map(function (r) {
+      return {
+        qdID: normalizeStr_(r.QDID), userID: normalizeStr_(r.UserID), hoTen: normalizeStr_(r.HoTen),
+        loai: normalizeStr_(r.Loai), tenLoai: QD_TEN[normalizeStr_(r.Loai)] || normalizeStr_(r.Loai),
+        noiDungCu: normalizeStr_(r.NoiDungCu), noiDungMoi: normalizeStr_(r.NoiDungMoi),
+        hieuLucTu: normalizeDate_(r.HieuLucTu), lyDo: normalizeStr_(r.LyDo),
+        nguoiDeXuat: normalizeStr_(r.NguoiDeXuat), nguoiDuyet: normalizeStr_(r.NguoiDuyet),
+        thoiGianDuyet: normalizeStr_(r.ThoiGianDuyet), trangThai: normalizeStr_(r.TrangThai)
+      };
+    })
+    .filter(function (r) { return !fTT || r.trangThai === fTT; })
+    .sort(function (a, b) { return a.qdID < b.qdID ? 1 : -1; });
+  return { success: true, message: 'OK', data: list };
+}
+
+/** Chủ xưởng duyệt quyết định -> hệ TỰ áp vào hồ sơ + sinh bản ghi lương nếu liên quan. */
+function approveDecision(data) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var ctx = checkModule_('SalaryHistory', data.userID);
+    if (ctx.err) return ctx.err;
+    if (!laChuXuong_(ctx.p.userID)) return loiQuyenChuXuong_();
+
+    var rows = getSheetDataSafe_(TEN_SHEET.QUYET_DINH_NHAN_SU);
+    for (var i = 0; i < rows.length; i++) {
+      if (normalizeStr_(rows[i].QDID) !== normalizeStr_(data.qdID)) continue;
+      if (normalizeStr_(rows[i].TrangThai) !== 'ChoDuyet') return { success: false, message: 'Quyết định này đã được xử lý.' };
+
+      var r = rows[i];
+      var loai = normalizeStr_(r.Loai);
+      var uid = normalizeStr_(r.UserID);
+      var hieuLucTu = normalizeDate_(r.HieuLucTu);
+      var target = getUserById(uid);
+      if (!target) return { success: false, message: 'Nhân viên không còn tồn tại.' };
+
+      if (['ChinhThuc', 'TangLuong', 'GiamLuong', 'DieuChinhPhuCap'].indexOf(loai) >= 0) {
+        var nd;
+        try { nd = JSON.parse(normalizeStr_(r.NoiDungMoi)); } catch (e) { return { success: false, message: 'Nội dung lương của quyết định không hợp lệ.' }; }
+        themBanGhiLuong_(target, {
+          luongChinhThuc: nd.luongChinhThuc, tyLe: nd.tyLe, luongTheoGio: nd.luongTheoGio,
+          phuCapCoDinh: nd.phuCapCoDinh, hieuLucTu: hieuLucTu,
+          lyDo: QD_TEN[loai] + ': ' + normalizeStr_(r.LyDo), qdID: normalizeStr_(r.QDID), nguoiDuyet: ctx.p.userID
+        });
+        if (loai === 'ChinhThuc') {
+          updateRowById(TEN_SHEET.NHAN_VIEN, 'UserID', uid, { NgayChinhThuc: hieuLucTu, ThoiGianCapNhat: nowStr_() });
+        }
+      } else if (loai === 'GiaHanThuViec') {
+        updateRowById(TEN_SHEET.NHAN_VIEN, 'UserID', uid, { NgayKetThucThuViec: normalizeDate_(r.NoiDungMoi) || hieuLucTu, ThoiGianCapNhat: nowStr_() });
+      } else if (loai === 'ChuyenPhongBan') {
+        updateRowById(TEN_SHEET.NHAN_VIEN, 'UserID', uid, { PhongBan: normalizeStr_(r.NoiDungMoi), ThoiGianCapNhat: nowStr_() });
+        updateRowById(TEN_SHEET.USERS, 'UserID', uid, { PhongBan: normalizeStr_(r.NoiDungMoi) });
+      } else if (loai === 'DoiChucVu') {
+        updateRowById(TEN_SHEET.NHAN_VIEN, 'UserID', uid, { ChucVu: normalizeStr_(r.NoiDungMoi), ThoiGianCapNhat: nowStr_() });
+      } else if (loai === 'DoiCaMacDinh') {
+        var nvRow = findEmployeeRow_(uid);
+        updateRowById(TEN_SHEET.NHAN_VIEN, 'UserID', uid, {
+          GhiChu: appendGhiChu_(nvRow ? normalizeStr_(nvRow.GhiChu) : '', 'Ca mặc định mới từ ' + hieuLucTu + ': ' + normalizeStr_(r.NoiDungMoi)),
+          ThoiGianCapNhat: nowStr_()
+        });
+      } else if (loai === 'TamNghi') {
+        updateRowById(TEN_SHEET.NHAN_VIEN, 'UserID', uid, { TrangThaiLamViec: 'Tạm nghỉ', ThoiGianCapNhat: nowStr_() });
+      } else if (loai === 'NghiViec') {
+        updateRowById(TEN_SHEET.USERS, 'UserID', uid, { TrangThai: 'Inactive' });
+        updateRowById(TEN_SHEET.NHAN_VIEN, 'UserID', uid, { TrangThaiLamViec: 'Nghỉ việc', NgayNghiViec: hieuLucTu, ThoiGianCapNhat: nowStr_() });
+      }
+
+      updateRowById(TEN_SHEET.QUYET_DINH_NHAN_SU, 'QDID', data.qdID, {
+        TrangThai: 'DaDuyet', NguoiDuyet: ctx.p.userID, ThoiGianDuyet: nowStr_()
+      });
+      writeAttendanceHistory({
+        recordID: normalizeStr_(data.qdID), userID: uid, hoTen: normalizeStr_(r.HoTen),
+        hanhDong: 'Duyệt quyết định: ' + (QD_TEN[loai] || loai),
+        giaTriCu: normalizeStr_(r.NoiDungCu), giaTriMoi: 'Hiệu lực từ ' + hieuLucTu,
+        nguoiThucHien: ctx.p.userID, ghiChu: normalizeStr_(r.LyDo)
+      });
+      return { success: true, message: 'Đã duyệt "' + (QD_TEN[loai] || loai) + '" cho ' + normalizeStr_(r.HoTen) + ' - hệ thống đã tự áp dụng.' };
+    }
+    return { success: false, message: 'Không tìm thấy quyết định.' };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function rejectDecision(data) {
+  var ctx = checkModule_('SalaryHistory', data.userID);
+  if (ctx.err) return ctx.err;
+  if (!laChuXuong_(ctx.p.userID)) return loiQuyenChuXuong_();
+  var lyDo = normalizeStr_(data.lyDo);
+  if (!lyDo) return { success: false, message: 'Vui lòng nhập lý do từ chối.' };
+  var found = updateRowById(TEN_SHEET.QUYET_DINH_NHAN_SU, 'QDID', data.qdID, {
+    TrangThai: 'TuChoi', NguoiDuyet: ctx.p.userID, ThoiGianDuyet: nowStr_(), GhiChu: 'Từ chối: ' + lyDo
+  });
+  return found ? { success: true, message: 'Đã từ chối quyết định.' } : { success: false, message: 'Không tìm thấy quyết định.' };
+}
+
+function getSalaryHistory(userID, targetUserID) {
+  var ctx = checkModule_('SalaryHistory', userID);
+  if (ctx.err) return ctx.err;
+  var tid = normalizeStr_(targetUserID) || ctx.p.userID;
+  if (tid !== ctx.p.userID && !ctx.p.duocXemBangLuong && !laChuXuong_(ctx.p.userID)) {
+    return { success: false, message: 'Bạn chỉ xem được lịch sử lương của chính mình.' };
+  }
+  var list = getSheetDataSafe_(TEN_SHEET.LICH_SU_LUONG)
+    .filter(function (r) { return normalizeStr_(r.UserID) === tid; })
+    .map(function (r) {
+      return {
+        luongID: normalizeStr_(r.LuongID), luongChinhThuc: parseMoney_(r.LuongChinhThuc),
+        tyLe: Number(r.TyLe) || 100, luongApDung: parseMoney_(r.LuongApDung),
+        luongTheoGio: parseMoney_(r.LuongTheoGio), phuCapCoDinh: parseMoney_(r.PhuCapCoDinh),
+        hieuLucTu: normalizeDate_(r.HieuLucTu), hieuLucDen: normalizeDate_(r.HieuLucDen),
+        lyDo: normalizeStr_(r.LyDo), nguoiDuyet: normalizeStr_(r.NguoiDuyet)
+      };
+    })
+    .sort(function (a, b) { return a.hieuLucTu < b.hieuLucTu ? 1 : -1; });
+  return { success: true, message: 'OK', data: list };
+}
+
+/** Danh sách đến kỳ xét tăng lương (mốc = bản ghi lương mới nhất + 6 tháng, tính từ ngày chính thức). */
+function getSalaryReviewDue_() {
+  var homNay = todayStr_();
+  var kq = [];
+  getSheetDataSafe_(TEN_SHEET.NHAN_VIEN).forEach(function (r) {
+    if (normalizeStr_(r.TrangThaiLamViec) !== 'Đang làm') return;
+    var ngayCT = normalizeDate_(r.NgayChinhThuc);
+    if (!isValidDateStr_(ngayCT)) return; // chưa chính thức -> chưa vào chu kỳ
+    var uid = normalizeStr_(r.UserID);
+    var banGhi = timBanGhiLuong_(uid, homNay);
+    var moc = banGhi ? normalizeDate_(banGhi.HieuLucTu) : ngayCT;
+    if (moc < ngayCT) moc = ngayCT;
+    var denKy = addMonthsStr_(moc, 6);
+    var conNgay = dateDiffDays_(homNay, denKy);
+    if (conNgay <= 30) kq.push({ userID: uid, hoTen: normalizeStr_(r.HoTen), phongBan: normalizeStr_(r.PhongBan), denKy: denKy, conNgay: conNgay });
+  });
+  return kq;
+}
+
+// ================== V5 P3: BẢNG LƯƠNG V5 (chia giai đoạn + phép 2 ngày/tháng) ==================
+
+/** Công chuẩn của tháng/phòng ban: CAU_HINH_CONG_CHUAN (pb riêng > pb trống) -> CongChuanMacDinh -> 26. */
+function getCongChuan_(month, year, phongBan) {
+  var kq = null, kqChung = null;
+  getSheetDataSafe_(TEN_SHEET.CAU_HINH_CONG_CHUAN).forEach(function (r) {
+    if (Number(r.Thang) !== month || Number(r.Nam) !== year) return;
+    var pb = normalizeStr_(r.PhongBan);
+    var cc = Number(r.CongChuan);
+    if (isNaN(cc) || cc <= 0) return;
+    if (pb === phongBan) kq = cc;
+    if (pb === '') kqChung = cc;
+  });
+  if (kq) return kq;
+  if (kqChung) return kqChung;
+  var macDinh = Number(getConfigMap_()['CongChuanMacDinh']);
+  return (!isNaN(macDinh) && macDinh > 0) ? macDinh : 26;
+}
+
+/** Chia tháng thành các đoạn lương hiệu lực (đúng từng ngày, gộp ngày liên tiếp cùng mức). */
+function layDoanLuong_(userID, range) {
+  var doans = [];
+  var hienTai = null;
+  for (var ngay = range.tuNgay; ngay <= range.denNgay; ngay = addDaysStr_(ngay, 1)) {
+    var l = getLuongApDung_(userID, ngay);
+    var khoa = l.nguon + '|' + l.luongThang + '|' + l.luongTheoGio + '|' + l.tyLe + '|' + l.phuCapCoDinh;
+    if (hienTai && hienTai.khoa === khoa) {
+      hienTai.den = ngay;
+    } else {
+      hienTai = { khoa: khoa, tu: ngay, den: ngay, luongThang: l.luongThang, luongTheoGio: l.luongTheoGio, phuCapCoDinh: l.phuCapCoDinh, tyLe: l.tyLe };
+      doans.push(hienTai);
+    }
+  }
+  return doans;
+}
+
+/**
+ * Lõi tính bảng lương V5 cho 1 tháng (Q2 + quy chế phép):
+ * Tiền giai đoạn = lương tháng giai đoạn ÷ công chuẩn × công tính lương thực tế giai đoạn.
+ * Phép: SoNgayPhepThang (mặc định 2) - nghỉ Có phép đã duyệt hưởng lương tối đa hạn mức;
+ * phần hạn mức KHÔNG nghỉ -> cộng tiền tương ứng. Phần nghỉ VƯỢT hạn mức không tính công lương.
+ */
+function tinhPayrollV5Core_(month, year, fPB) {
+  var range = monthRange_(month, year);
+  var hanMucPhep = Number(getConfigMap_()['SoNgayPhepThang']);
+  if (isNaN(hanMucPhep) || hanMucPhep < 0) hanMucPhep = 2;
+
+  // Gom dữ liệu tháng 1 lần
+  var congTheoUser = {}; // uid -> {ngay: {co, gio}}
+  var otCham = {};
+  getSheetDataSafe_(TEN_SHEET.CHAM_CONG).forEach(function (r) {
+    var ngay = normalizeDate_(r.Ngay);
+    if (ngay < range.tuNgay || ngay > range.denNgay) return;
+    var uid = normalizeStr_(r.UserID);
+    if (!congTheoUser[uid]) congTheoUser[uid] = {};
+    var gio = Number(r.SoGioLam) || 0;
+    congTheoUser[uid][ngay] = { co: gio > 0 || (normalizeStr_(r.GioVao) && normalizeStr_(r.GioRa)), gio: gio };
+    otCham[uid] = (otCham[uid] || 0) + (Number(r.SoGioTangCa) || 0);
+  });
+  var otDuyet = {};
+  getSheetDataSafe_(TEN_SHEET.TANG_CA).forEach(function (r) {
+    if (normalizeStr_(r.TrangThai) !== TT_TANG_CA.DA_DUYET) return;
+    var ngay = normalizeDate_(r.Ngay);
+    if (ngay < range.tuNgay || ngay > range.denNgay) return;
+    otDuyet[normalizeStr_(r.UserID)] = (otDuyet[normalizeStr_(r.UserID)] || 0) + (Number(r.SoGioTangCa) || 0);
+  });
+  var phepTheoUser = {}; // uid -> [{ngay, qd}] đơn Có phép ĐÃ DUYỆT, sort theo ngày
+  getSheetData(TEN_SHEET.LICH_NGHI).forEach(function (r) {
+    if (normalizeStr_(r.TrangThai) !== TRANG_THAI.DA_DUYET) return;
+    if (normalizeStr_(r.LoaiNghi) !== 'Có phép') return;
+    var ngay = normalizeDate_(r.NgayNghi);
+    if (ngay < range.tuNgay || ngay > range.denNgay) return;
+    var uid = normalizeStr_(r.UserID);
+    if (!phepTheoUser[uid]) phepTheoUser[uid] = [];
+    phepTheoUser[uid].push({ ngay: ngay, qd: normalizeStr_(r.CaNghi) === 'FULL' ? 1 : 0.5 });
+  });
+  Object.keys(phepTheoUser).forEach(function (k) {
+    phepTheoUser[k].sort(function (a, b) { return a.ngay < b.ngay ? -1 : 1; });
+  });
+  var tamUngTheoUser = {};
+  getSheetDataSafe_(TEN_SHEET.TAM_UNG).forEach(function (r) {
+    if (normalizeStr_(r.TrangThai) !== TT_TAM_UNG.DA_CHI) return;
+    var ngay = normalizeDate_(r.NgayDeNghi);
+    if (ngay < range.tuNgay || ngay > range.denNgay) return;
+    tamUngTheoUser[normalizeStr_(r.UserID)] = (tamUngTheoUser[normalizeStr_(r.UserID)] || 0) + parseMoney_(r.SoTien);
+  });
+  var tpTheoUser = {};
+  getSheetDataSafe_(TEN_SHEET.THUONG_PHAT).forEach(function (r) {
+    if (normalizeStr_(r.TrangThai) === 'Deleted') return;
+    if (Number(r.Thang) !== month || Number(r.Nam) !== year) return;
+    var uid = normalizeStr_(r.UserID);
+    if (!tpTheoUser[uid]) tpTheoUser[uid] = { thuong: 0, phat: 0, phuCap: 0, khauTru: 0 };
+    var tien = parseMoney_(r.SoTien);
+    var l = normalizeStr_(r.Loai);
+    if (l === 'Thưởng') tpTheoUser[uid].thuong += tien;
+    else if (l === 'Phạt') tpTheoUser[uid].phat += tien;
+    else if (l === 'Phụ cấp') tpTheoUser[uid].phuCap += tien;
+    else if (l === 'Khấu trừ') tpTheoUser[uid].khauTru += tien;
+  });
+
+  return getSheetDataSafe_(TEN_SHEET.NHAN_VIEN)
+    .map(buildEmployeePayload_)
+    .filter(function (nv) {
+      if (nv.trangThaiLamViec !== 'Đang làm') return false;
+      if (fPB && nv.phongBan !== fPB) return false;
+      return true;
+    })
+    .map(function (nv) {
+      var uid = nv.userID;
+      var congChuan = getCongChuan_(month, year, nv.phongBan);
+      var doans = layDoanLuong_(uid, range);
+      var congNgay = congTheoUser[uid] || {};
+
+      // Phân bổ phép hưởng lương theo NGÀY PHÁT SINH đến khi hết hạn mức
+      var phepHuong = []; // {ngay, qd}
+      var quota = hanMucPhep;
+      var tongPhepXin = 0;
+      (phepTheoUser[uid] || []).forEach(function (x) {
+        tongPhepXin += x.qd;
+        if (quota <= 0) return;
+        var lay = Math.min(x.qd, quota);
+        phepHuong.push({ ngay: x.ngay, qd: lay });
+        quota = Math.round((quota - lay) * 100) / 100;
+      });
+      var phepConLai = quota; // phần KHÔNG nghỉ -> cộng tiền
+      var phepVuot = Math.max(0, Math.round((tongPhepXin - (hanMucPhep - quota)) * 100) / 100);
+
+      var theoGio = nv.hinhThucLuong === 'Theo giờ';
+      var giaiDoan = [];
+      var tongTienCong = 0, tongCongTinhLuong = 0, tongGioLam = 0;
+      var canhBao = [];
+
+      doans.forEach(function (d) {
+        var congThucTe = 0, gioDoan = 0, phepDoan = 0;
+        for (var ngay = d.tu; ngay <= d.den; ngay = addDaysStr_(ngay, 1)) {
+          var c = congNgay[ngay];
+          if (c && c.co) { congThucTe++; gioDoan += c.gio; }
+        }
+        phepHuong.forEach(function (x) { if (x.ngay >= d.tu && x.ngay <= d.den) phepDoan += x.qd; });
+
+        var congTinhLuong = Math.round((congThucTe + phepDoan) * 100) / 100;
+        var tien = 0;
+        if (theoGio) {
+          tien = Math.round(gioDoan * d.luongTheoGio) + Math.round(phepDoan * 8 * d.luongTheoGio);
+          if (d.luongTheoGio <= 0) canhBao.push('Chưa khai lương theo giờ (giai đoạn ' + d.tu + ').');
+        } else if (nv.hinhThucLuong === 'Theo tháng') {
+          tien = Math.round(d.luongThang / congChuan * congTinhLuong);
+          if (d.luongThang <= 0) canhBao.push('Chưa khai mức lương (giai đoạn ' + d.tu + ').');
+        } else {
+          canhBao.push('Hình thức lương "' + nv.hinhThucLuong + '" - tính tay.');
+        }
+        tongTienCong += tien;
+        tongCongTinhLuong += congTinhLuong;
+        tongGioLam += gioDoan;
+        giaiDoan.push({
+          tu: d.tu, den: d.den, tyLe: d.tyLe,
+          moTa: fmtNgayVN_(d.tu) + ' - ' + fmtNgayVN_(d.den) + ': ' + (d.tyLe < 100 ? 'thử việc ' + d.tyLe + '%' : 'chính thức') +
+            ' - ' + congTinhLuong + ' công' + (theoGio ? ' (' + Math.round(gioDoan * 100) / 100 + 'h)' : ''),
+          luongThang: d.luongThang, congTinhLuong: congTinhLuong, tien: tien
+        });
+      });
+
+      // Tiền phép KHÔNG nghỉ: đơn giá theo mức lương giai đoạn cuối
+      var cuoi = doans[doans.length - 1];
+      var donGiaNgay = theoGio ? 8 * cuoi.luongTheoGio : Math.round(cuoi.luongThang / congChuan);
+      var tienPhepKhongNghi = Math.round(phepConLai * donGiaNgay);
+
+      var tp = tpTheoUser[uid] || { thuong: 0, phat: 0, phuCap: 0, khauTru: 0 };
+      var tamUng = tamUngTheoUser[uid] || 0;
+      var tongGioOT = Math.round(((otCham[uid] || 0) + (otDuyet[uid] || 0)) * 100) / 100;
+      if (phepVuot > 0) canhBao.push('Nghỉ có phép VƯỢT hạn mức ' + phepVuot + ' ngày - phần vượt không tính công lương.');
+
+      var tong = tongTienCong + tienPhepKhongNghi + cuoi.phuCapCoDinh + tp.thuong + tp.phuCap - tp.phat - tp.khauTru - tamUng;
+
+      return {
+        userID: uid, hoTen: nv.hoTen, phongBan: nv.phongBan, hinhThucLuong: nv.hinhThucLuong,
+        congChuan: congChuan, giaiDoan: giaiDoan,
+        tongCong: tongCongTinhLuong, tongGioLam: Math.round(tongGioLam * 100) / 100, tongGioTangCa: tongGioOT,
+        phepDaNghi: Math.round((hanMucPhep - phepConLai) * 100) / 100, phepConLai: phepConLai,
+        tienPhepKhongNghi: tienPhepKhongNghi, tienCong: tongTienCong,
+        phuCapCoDinh: cuoi.phuCapCoDinh,
+        thuong: tp.thuong, phat: tp.phat, phuCap: tp.phuCap, khauTru: tp.khauTru, tamUngDaChi: tamUng,
+        thucNhan: tong,
+        canhBao: canhBao.join(' ')
+      };
+    })
+    .sort(function (a, b) {
+      if (a.phongBan !== b.phongBan) return a.phongBan < b.phongBan ? -1 : 1;
+      return a.hoTen < b.hoTen ? -1 : 1;
+    });
+}
+
+function fmtNgayVN_(s) {
+  var p = String(s).split('-');
+  return p.length === 3 ? p[2] + '/' + p[1] : s;
+}
+
+/** Bảng lương V5 (xem trước khi chốt). */
+function getPayrollV5(userID, month, year, filters) {
+  var ctx = checkModule_('SalaryHistory', userID); // RC2: chốt flag - tắt thì dùng lương sơ bộ cũ (getPayrollDraft)
+  if (ctx.err) return ctx.err;
+  var mgr = checkHRPerm_(userID, 'duocXemBangLuong');
+  if (!mgr) return { success: false, message: 'Bạn không có quyền xem bảng lương.' };
+  var range = monthRange_(month, year);
+  if (!range) return { success: false, message: 'Tháng/năm không hợp lệ.' };
+  var list = tinhPayrollV5Core_(range.month, range.year, normalizeStr_((filters || {}).phongBan));
+  return { success: true, message: 'OK', data: { month: range.month, year: range.year, bangLuong: list } };
+}
+
+// ================== V5 P4: KHÓA CÔNG / KHÓA LƯƠNG / SNAPSHOT / KÝ NHẬN ==================
+
+/** Kỳ đang chốt (Đã chốt) của loại CONG/LUONG. */
+function getKyKhoaHienHanh_(loai, thang, nam) {
+  var kq = null;
+  getSheetDataSafe_(TEN_SHEET.CHOT_KY).forEach(function (r) {
+    if (normalizeStr_(r.Loai) !== loai) return;
+    if (Number(r.Thang) !== thang || Number(r.Nam) !== nam) return;
+    if (normalizeStr_(r.TrangThai) !== 'Đã chốt') return;
+    kq = r;
+  });
+  return kq;
+}
+
+/**
+ * Guard khóa kỳ - được chèn 1 dòng vào 11 hàm ghi cũ (V4 3.2 đã duyệt).
+ * Flag PayrollLock = FALSE -> luôn trả null (hành vi V4 nguyên vẹn).
+ */
+function checkKyKhoa_(loai, ngayStr) {
+  if (getModuleState_('PayrollLock') === 'FALSE') return null;
+  var ngay = normalizeDate_(ngayStr);
+  if (!/^\d{4}-\d{2}/.test(ngay)) return null;
+  var thang = Number(ngay.slice(5, 7)), nam = Number(ngay.slice(0, 4));
+  if (!getKyKhoaHienHanh_(loai, thang, nam)) return null;
+  return {
+    success: false,
+    message: 'Tháng ' + thang + '/' + nam + ' đã CHỐT ' + (loai === 'LUONG' ? 'LƯƠNG' : 'CÔNG') + '. Liên hệ chủ xưởng để mở khóa nếu thật sự cần sửa.'
+  };
+}
+
+/** Chốt kỳ. data = {userID, loai: 'CONG'|'LUONG', thang, nam} (LUONG dùng lockPayroll để kèm snapshot). */
+function lockPeriod(data) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var ctx = checkModule_('PayrollLock', data.userID);
+    if (ctx.err) return ctx.err;
+    var loai = normalizeStr_(data.loai);
+    if (loai !== 'CONG') return { success: false, message: 'Dùng chức năng Chốt lương để chốt LƯƠNG (kèm snapshot).' };
+    if (!ctx.p.duocSuaCong) return { success: false, message: 'Bạn không có quyền chốt công.' };
+    var range = monthRange_(data.thang, data.nam);
+    if (!range) return { success: false, message: 'Tháng/năm không hợp lệ.' };
+    if (getKyKhoaHienHanh_('CONG', range.month, range.year)) {
+      return { success: false, message: 'Tháng này ĐANG chốt công - không chốt trùng. Muốn chốt lại phải mở khóa trước.' };
+    }
+    var lanChot = 1;
+    getSheetDataSafe_(TEN_SHEET.CHOT_KY).forEach(function (r) {
+      if (normalizeStr_(r.Loai) === 'CONG' && Number(r.Thang) === range.month && Number(r.Nam) === range.year) {
+        lanChot = Math.max(lanChot, (Number(r.LanChot) || 0) + 1);
+      }
+    });
+    appendRow(TEN_SHEET.CHOT_KY, {
+      ChotID: 'CK-' + Utilities.formatDate(new Date(), TIMEZONE, 'yyyyMMddHHmmss') + '-' + Math.floor(Math.random() * 900 + 100),
+      Loai: 'CONG', Thang: String(range.month), Nam: String(range.year), LanChot: String(lanChot),
+      TrangThai: 'Đã chốt', NguoiChot: ctx.p.userID, ThoiGianChot: nowStr_()
+    });
+    writeAttendanceHistory({
+      recordID: 'CONG-' + range.month + '/' + range.year, userID: '', hoTen: '',
+      hanhDong: 'Chốt CÔNG tháng', giaTriCu: '', giaTriMoi: 'Lần ' + lanChot,
+      nguoiThucHien: ctx.p.userID, ghiChu: ''
+    });
+    return { success: true, message: 'Đã CHỐT CÔNG tháng ' + range.month + '/' + range.year + ' (lần ' + lanChot + '). Mọi sửa công/nghỉ/OT của tháng này bị khóa.' };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** Chủ xưởng mở khóa kỳ. data = {userID, loai, thang, nam, lyDo} */
+function unlockPeriod(data) {
+  var ctx = checkModule_('PayrollLock', data.userID);
+  if (ctx.err) return ctx.err;
+  if (!laChuXuong_(ctx.p.userID)) return loiQuyenChuXuong_();
+  var loai = normalizeStr_(data.loai);
+  var range = monthRange_(data.thang, data.nam);
+  if (!range || ['CONG', 'LUONG'].indexOf(loai) < 0) return { success: false, message: 'Dữ liệu không hợp lệ.' };
+  var lyDo = normalizeStr_(data.lyDo);
+  if (!lyDo) return { success: false, message: 'Vui lòng nhập lý do mở khóa (lưu lịch sử).' };
+  var khoa = getKyKhoaHienHanh_(loai, range.month, range.year);
+  if (!khoa) return { success: false, message: 'Tháng này không có kỳ ' + loai + ' đang chốt.' };
+  if (loai === 'CONG' && getKyKhoaHienHanh_('LUONG', range.month, range.year)) {
+    return { success: false, message: 'Phải mở khóa LƯƠNG trước khi mở khóa CÔNG của cùng tháng.' };
+  }
+
+  updateRowById(TEN_SHEET.CHOT_KY, 'ChotID', khoa.ChotID, {
+    TrangThai: 'Đã mở lại', NguoiMoKhoa: ctx.p.userID, ThoiGianMoKhoa: nowStr_(), GhiChu: lyDo
+  });
+  // Mở khóa LƯƠNG: snapshot bản đó chuyển HieuLuc=FALSE (KHÔNG xóa - Q10)
+  if (loai === 'LUONG') {
+    getSheetDataSafe_(TEN_SHEET.BANG_LUONG).forEach(function (r) {
+      if (Number(r.Thang) !== range.month || Number(r.Nam) !== range.year) return;
+      if (Number(r.LanChot) !== Number(khoa.LanChot)) return;
+      if (!isTrue_(r.HieuLuc)) return;
+      updateRowById(TEN_SHEET.BANG_LUONG, 'BangLuongID', r.BangLuongID, { HieuLuc: 'FALSE' });
+    });
+  }
+  writeAttendanceHistory({
+    recordID: loai + '-' + range.month + '/' + range.year, userID: '', hoTen: '',
+    hanhDong: 'MỞ KHÓA kỳ ' + loai, giaTriCu: 'Đã chốt (lần ' + normalizeStr_(khoa.LanChot) + ')', giaTriMoi: 'Đã mở lại',
+    nguoiThucHien: ctx.p.userID, ghiChu: lyDo
+  });
+  return { success: true, message: 'Đã mở khóa ' + loai + ' tháng ' + range.month + '/' + range.year + '.' + (loai === 'LUONG' ? ' Snapshot cũ chuyển hết hiệu lực (không xóa) - chốt lại sẽ tạo bản mới, nhân viên ký lại.' : '') };
+}
+
+function getLockStatus(userID, month, year) {
+  var u = checkUserActive(userID);
+  if (!u) return { success: false, message: 'Tài khoản không hợp lệ.' };
+  var range = monthRange_(month, year);
+  if (!range) return { success: false, message: 'Tháng/năm không hợp lệ.' };
+  function tt(loai) {
+    var k = getKyKhoaHienHanh_(loai, range.month, range.year);
+    return k ? { lanChot: Number(k.LanChot) || 1, nguoiChot: normalizeStr_(k.NguoiChot), thoiGianChot: normalizeStr_(k.ThoiGianChot) } : null;
+  }
+  return { success: true, message: 'OK', data: { month: range.month, year: range.year, cong: tt('CONG'), luong: tt('LUONG') } };
+}
+
+/** Chốt LƯƠNG: tính bảng lương V5 -> ghi snapshot BANG_LUONG (LanChot, HieuLuc=TRUE) -> khóa. */
+function lockPayroll(data) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    var ctx = checkModule_('PayrollLock', data.userID);
+    if (ctx.err) return ctx.err;
+    if (!ctx.p.duocChotLuong) return { success: false, message: 'Bạn không có quyền chốt lương.' };
+    var range = monthRange_(data.thang, data.nam);
+    if (!range) return { success: false, message: 'Tháng/năm không hợp lệ.' };
+    if (!getKyKhoaHienHanh_('CONG', range.month, range.year)) {
+      return { success: false, message: 'Phải CHỐT CÔNG tháng này trước rồi mới chốt lương.' };
+    }
+    if (getKyKhoaHienHanh_('LUONG', range.month, range.year)) {
+      return { success: false, message: 'Tháng này ĐANG chốt lương - không chốt trùng. Mở khóa trước nếu muốn chốt lại.' };
+    }
+    var lanChot = 1;
+    getSheetDataSafe_(TEN_SHEET.CHOT_KY).forEach(function (r) {
+      if (normalizeStr_(r.Loai) === 'LUONG' && Number(r.Thang) === range.month && Number(r.Nam) === range.year) {
+        lanChot = Math.max(lanChot, (Number(r.LanChot) || 0) + 1);
+      }
+    });
+
+    var bangLuong = tinhPayrollV5Core_(range.month, range.year, '');
+    var thoiGian = nowStr_();
+    bangLuong.forEach(function (r, i) {
+      appendRow(TEN_SHEET.BANG_LUONG, {
+        // RC2 fix: kèm LanChot để ID không trùng giữa các lần chốt (RC1 có thể trùng nếu chốt lại trong cùng giây)
+        BangLuongID: 'BL-' + Utilities.formatDate(new Date(), TIMEZONE, 'yyyyMMddHHmmss') + '-L' + lanChot + '-' + (100 + i),
+        Thang: String(range.month), Nam: String(range.year), LanChot: String(lanChot), HieuLuc: 'TRUE',
+        UserID: r.userID, HoTen: r.hoTen, PhongBan: r.phongBan, HinhThucLuong: r.hinhThucLuong,
+        LuongCoBan: String(r.giaiDoan.length ? r.giaiDoan[r.giaiDoan.length - 1].luongThang : 0),
+        LuongTheoGio: '', PhuCapCoDinh: String(r.phuCapCoDinh),
+        TongGioLam: String(r.tongGioLam), TongGioTangCa: String(r.tongGioTangCa),
+        NghiCoPhep: String(r.phepDaNghi), NghiKhongPhep: '',
+        TamUngDaChi: String(r.tamUngDaChi), Thuong: String(r.thuong), Phat: String(r.phat),
+        PhuCap: String(r.phuCap), KhauTru: String(r.khauTru), TongTamTinh: String(r.thucNhan),
+        GhiChu: JSON.stringify({ giaiDoan: r.giaiDoan, tienPhepKhongNghi: r.tienPhepKhongNghi, phepConLai: r.phepConLai, tongCong: r.tongCong, canhBao: r.canhBao }),
+        NguoiChot: ctx.p.userID, ThoiGianChot: thoiGian, DaKyNhan: 'FALSE'
+      });
+    });
+    appendRow(TEN_SHEET.CHOT_KY, {
+      ChotID: 'CK-' + Utilities.formatDate(new Date(), TIMEZONE, 'yyyyMMddHHmmss') + '-' + Math.floor(Math.random() * 900 + 100),
+      Loai: 'LUONG', Thang: String(range.month), Nam: String(range.year), LanChot: String(lanChot),
+      TrangThai: 'Đã chốt', NguoiChot: ctx.p.userID, ThoiGianChot: thoiGian
+    });
+    writeAttendanceHistory({
+      recordID: 'LUONG-' + range.month + '/' + range.year, userID: '', hoTen: '',
+      hanhDong: 'Chốt LƯƠNG tháng (snapshot)', giaTriCu: '', giaTriMoi: 'Lần ' + lanChot + ' - ' + bangLuong.length + ' nhân viên',
+      nguoiThucHien: ctx.p.userID, ghiChu: ''
+    });
+    // KHÔNG log số tiền ra console (quy tắc V4)
+    return { success: true, message: 'Đã CHỐT LƯƠNG tháng ' + range.month + '/' + range.year + ' (lần ' + lanChot + ', ' + bangLuong.length + ' nhân viên). Nhân viên có thể xem phiếu và ký nhận.' };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function buildBangLuongPayload_(r) {
+  var chiTiet = {};
+  try { chiTiet = JSON.parse(normalizeStr_(r.GhiChu)) || {}; } catch (e) { chiTiet = {}; }
+  return {
+    bangLuongID: normalizeStr_(r.BangLuongID), thang: Number(r.Thang), nam: Number(r.Nam),
+    lanChot: Number(r.LanChot) || 1, hieuLuc: isTrue_(r.HieuLuc),
+    userID: normalizeStr_(r.UserID), hoTen: normalizeStr_(r.HoTen), phongBan: normalizeStr_(r.PhongBan),
+    hinhThucLuong: normalizeStr_(r.HinhThucLuong),
+    tongGioLam: Number(r.TongGioLam) || 0, tongGioTangCa: Number(r.TongGioTangCa) || 0,
+    nghiCoPhep: Number(r.NghiCoPhep) || 0, phuCapCoDinh: parseMoney_(r.PhuCapCoDinh),
+    tamUngDaChi: parseMoney_(r.TamUngDaChi), thuong: parseMoney_(r.Thuong), phat: parseMoney_(r.Phat),
+    phuCap: parseMoney_(r.PhuCap), khauTru: parseMoney_(r.KhauTru), thucNhan: parseMoney_(r.TongTamTinh),
+    giaiDoan: chiTiet.giaiDoan || [], tienPhepKhongNghi: chiTiet.tienPhepKhongNghi || 0,
+    phepConLai: chiTiet.phepConLai || 0, tongCong: chiTiet.tongCong || 0, canhBao: chiTiet.canhBao || '',
+    nguoiChot: normalizeStr_(r.NguoiChot), thoiGianChot: normalizeStr_(r.ThoiGianChot),
+    daKyNhan: isTrue_(r.DaKyNhan), thoiGianKyNhan: normalizeStr_(r.ThoiGianKyNhan)
+  };
+}
+
+function getLockedPayroll(userID, month, year) {
+  var ctx = checkModule_('PayrollLock', userID); // RC2: chốt flag - PayrollLock tắt thì chưa có khái niệm bảng lương đã chốt
+  if (ctx.err) return ctx.err;
+  var mgr = checkHRPerm_(userID, 'duocXemBangLuong');
+  if (!mgr) return { success: false, message: 'Bạn không có quyền xem bảng lương đã chốt.' };
+  var range = monthRange_(month, year);
+  if (!range) return { success: false, message: 'Tháng/năm không hợp lệ.' };
+  var list = getSheetDataSafe_(TEN_SHEET.BANG_LUONG)
+    .map(buildBangLuongPayload_)
+    .filter(function (r) { return r.thang === range.month && r.nam === range.year && r.hieuLuc; })
+    .sort(function (a, b) { return a.phongBan < b.phongBan ? -1 : 1; });
+  return { success: true, message: 'OK', data: { month: range.month, year: range.year, bangLuong: list } };
+}
+
+/** Xuất TSV dán thẳng vào Excel/Google Sheet (mục 3 quyết định Đ3 V4). */
+function exportPayrollTSV(userID, month, year) {
+  var kq = getLockedPayroll(userID, month, year);
+  if (!kq.success) return kq;
+  var dong = ['Họ tên\tPhòng ban\tCông\tGiờ làm\tOT\tPhép đã nghỉ\tTiền phép không nghỉ\tPhụ cấp CĐ\tThưởng\tPhụ cấp\tPhạt\tKhấu trừ\tTạm ứng\tTHỰC NHẬN\tĐã ký'];
+  kq.data.bangLuong.forEach(function (r) {
+    dong.push([r.hoTen, r.phongBan, r.tongCong, r.tongGioLam, r.tongGioTangCa, r.nghiCoPhep,
+      r.tienPhepKhongNghi, r.phuCapCoDinh, r.thuong, r.phuCap, r.phat, r.khauTru, r.tamUngDaChi,
+      r.thucNhan, r.daKyNhan ? 'Rồi' : 'Chưa'].join('\t'));
+  });
+  return { success: true, message: 'OK', data: { tsv: dong.join('\n') } };
+}
+
+/** Phiếu lương của CHÍNH nhân viên (bản HieuLuc). */
+function getMyPayslip(userID, month, year) {
+  var ctx = checkModule_('SalaryConfirm', userID);
+  if (ctx.err) return ctx.err;
+  var range = monthRange_(month, year);
+  if (!range) return { success: false, message: 'Tháng/năm không hợp lệ.' };
+  var phieu = null;
+  getSheetDataSafe_(TEN_SHEET.BANG_LUONG).forEach(function (r) {
+    if (normalizeStr_(r.UserID) !== ctx.p.userID) return;
+    if (Number(r.Thang) !== range.month || Number(r.Nam) !== range.year) return;
+    if (!isTrue_(r.HieuLuc)) return;
+    phieu = buildBangLuongPayload_(r);
+  });
+  if (!phieu) return { success: false, message: 'Tháng ' + range.month + '/' + range.year + ' chưa chốt lương (hoặc bạn không có phiếu).' };
+  return { success: true, message: 'OK', data: phieu };
+}
+
+/** NV bấm "Tôi đã nhận" - lưu ngày giờ + thiết bị, không gỡ được. */
+function confirmSalaryReceived(data) {
+  var ctx = checkModule_('SalaryConfirm', data.userID);
+  if (ctx.err) return ctx.err;
+  var rows = getSheetDataSafe_(TEN_SHEET.BANG_LUONG);
+  for (var i = 0; i < rows.length; i++) {
+    if (normalizeStr_(rows[i].BangLuongID) !== normalizeStr_(data.bangLuongID)) continue;
+    if (normalizeStr_(rows[i].UserID) !== ctx.p.userID) return { success: false, message: 'Bạn chỉ ký nhận được phiếu của chính mình.' };
+    if (!isTrue_(rows[i].HieuLuc)) return { success: false, message: 'Phiếu này đã được thay bằng bản chốt mới - mở lại phiếu để ký bản mới.' };
+    if (isTrue_(rows[i].DaKyNhan)) return { success: false, message: 'Bạn đã ký nhận phiếu này rồi.' };
+    updateRowById(TEN_SHEET.BANG_LUONG, 'BangLuongID', data.bangLuongID, {
+      DaKyNhan: 'TRUE', ThoiGianKyNhan: nowStr_(), ThietBiKyNhan: normalizeStr_(data.thietBi).slice(0, 120)
+    });
+    writeAttendanceHistory({
+      recordID: normalizeStr_(data.bangLuongID), userID: ctx.p.userID, hoTen: ctx.p.hoTen,
+      hanhDong: 'Ký nhận lương', giaTriCu: '', giaTriMoi: 'Tháng ' + normalizeStr_(rows[i].Thang) + '/' + normalizeStr_(rows[i].Nam) + ' (lần chốt ' + normalizeStr_(rows[i].LanChot) + ')',
+      nguoiThucHien: ctx.p.userID, ghiChu: ''
+    });
+    return { success: true, message: 'Đã ghi nhận: bạn xác nhận ĐÃ NHẬN LƯƠNG. Cảm ơn!' };
+  }
+  return { success: false, message: 'Không tìm thấy phiếu lương.' };
+}
+
+// ================== V5 P4: DASHBOARD CHỦ XƯỞNG (bản gọn - 6 khối) ==================
+
+function getOwnerDashboard(userID) {
+  var ctx = checkModule_('OwnerDashboard', userID);
+  if (ctx.err) return ctx.err;
+  if (!ctx.p.duocXemBangLuong && !laChuXuong_(ctx.p.userID)) {
+    return { success: false, message: 'Bạn không có quyền xem dashboard chủ xưởng.' };
+  }
+  var th = tinhHinhHomNay_();
+  var viec = gomViecCanXuLy_(ctx.p);
+  var daChot = getSheetDataSafe_(TEN_SHEET.PHIEN_XU_LY_PM).some(function (r) { return normalizeDate_(r.Ngay) === th.ngay; });
+  return {
+    success: true, message: 'OK',
+    data: {
+      ngay: th.ngay,
+      diLam: th.daVao, tongActive: th.tongActive,
+      nghi: th.dsNghi, diTre: th.dsDiTre, chuaRa: th.dsChuaRa, chuaVao: th.dsChuaVao,
+      kpi: moduleEnabledFor_('KPI', ctx.p) ? getKPIData_(th.ngay) : null,
+      viecPMChuaXuLy: viec.length,
+      pmDaChotNgay: daChot,
+      nhacNho: moduleEnabledFor_('SalaryHistory', ctx.p) ? getSalaryReviewDue_().length : 0
+    }
+  };
+}
+
 // ================== V3: ID & AUDIT LOG ==================
 
 function generateChamCongID() {
@@ -2842,7 +5388,9 @@ function getAttendanceHistory(userID, chamCongID) {
   var mgr = checkHRPerm_(userID, 'duocSuaCong');
   if (!mgr) return { success: false, message: 'Bạn không có quyền xem lịch sử chỉnh công.' };
   var id = normalizeStr_(chamCongID);
-  var list = getSheetDataSafe_(TEN_SHEET.CHAM_CONG_HISTORY)
+  // V3.3.3: sheet lịch sử phình to theo thời gian -> chỉ đọc 500 dòng cuối,
+  // không getDataRange toàn sheet.
+  var list = getSheetDataTail_(TEN_SHEET.CHAM_CONG_HISTORY, 500)
     .filter(function (r) { return !id || normalizeStr_(r.ChamCongID) === id; })
     .map(function (r) {
       return {
@@ -2889,7 +5437,9 @@ function buildAttendancePayload_(r) {
     viDoRa: normalizeStr_(r.ViDoRa),
     kinhDoRa: normalizeStr_(r.KinhDoRa),
     doChinhXacRa: normalizeStr_(r.DoChinhXacRa),
-    khoangCachRa: normalizeStr_(r.KhoangCachRa)
+    khoangCachRa: normalizeStr_(r.KhoangCachRa),
+    // V5 P2: có phiếu điều chỉnh áp vào dòng này
+    coDieuChinh: isTrue_(r.CoDieuChinh)
   };
 }
 
@@ -2919,13 +5469,14 @@ function getTodayAttendance(userID) {
     trangThaiHomNay = normalizeStr_(row.GioRa) ? 'Đã chấm ra' : 'Đã chấm vào';
   }
 
-  // V3.3: cho frontend biết có bắt buộc GPS không để xin quyền vị trí
-  var diaDiem = getActiveAttendanceLocation_();
+  // V5.0-RC2: fail-closed đơn giản - GPS LUÔN bắt buộc; kèm trạng thái cấu hình
+  var vi = getValidAttendanceLocation_();
   var gps = {
-    batBuocGPS: diaDiem ? diaDiem.batBuocGPS : false,
-    daCauHinhToaDo: !!(diaDiem && diaDiem.viDo !== null && diaDiem.kinhDo !== null),
-    banKinhMet: diaDiem ? diaDiem.banKinhMet : 0,
-    tenDiaDiem: diaDiem ? diaDiem.tenDiaDiem : ''
+    batBuocGPS: true,
+    daCauHinhToaDo: !vi.loi,
+    loiCauHinh: vi.loi || '',
+    banKinhMet: vi.diaDiem ? vi.diaDiem.banKinhMet : 0,
+    tenDiaDiem: vi.diaDiem ? vi.diaDiem.tenDiaDiem : ''
   };
 
   return {
@@ -2963,11 +5514,14 @@ function checkIn(data) {
       return { success: false, message: 'Hôm nay bạn được đánh dấu Nghỉ. Liên hệ quản lý nếu có thay đổi.' };
     }
 
-    // V3.3: kiểm tra vị trí GPS Ở BACKEND (frontend chỉ là lớp hiển thị)
+    // V5.0-RC2: kiểm tra vị trí FAIL-CLOSED đơn giản Ở BACKEND
     var viTri = validateAttendanceLocation_(data.latitude, data.longitude, data.accuracy);
     if (!viTri.ok) return { success: false, message: viTri.message };
 
     var gioVao = nowHHMM_();
+    // V5 P2: ghi EVENT bất biến TRƯỚC khi cập nhật bảng công (flag AttendanceV2).
+    // Nếu ghi event thất bại -> throw -> KHÔNG báo chấm công thành công (yêu cầu Q4).
+    ghiEventChamCong_('CHECKIN', u, homNay, gioVao, viTri, data.thietBi);
     // V3.2: tính theo giờ chuẩn của lịch riêng / phòng ban / toàn xưởng
     var kq = calcAttendanceForUser_(normalizeStr_(u.UserID), normalizeStr_(u.PhongBan), homNay, gioVao, '');
     var thoiGian = nowStr_();
@@ -3044,11 +5598,13 @@ function checkOut(data) {
       return { success: false, message: 'Bạn đã chấm ra lúc ' + normalizeStr_(row.GioRa) + ' rồi.' };
     }
 
-    // V3.3: kiểm tra vị trí GPS Ở BACKEND
+    // V5.0-RC2: kiểm tra vị trí FAIL-CLOSED đơn giản Ở BACKEND
     var viTri = validateAttendanceLocation_(data.latitude, data.longitude, data.accuracy);
     if (!viTri.ok) return { success: false, message: viTri.message };
 
     var gioRa = nowHHMM_();
+    // V5 P2: ghi EVENT bất biến trước khi cập nhật bảng công (flag AttendanceV2)
+    ghiEventChamCong_('CHECKOUT', row, homNay, gioRa, viTri, data.thietBi);
     // V3.2: tính theo giờ chuẩn của lịch riêng / phòng ban / toàn xưởng
     var kq = calcAttendanceForUser_(normalizeStr_(row.UserID), normalizeStr_(row.PhongBan), homNay, normalizeStr_(row.GioVao), gioRa);
     var ghiChuNV = normalizeStr_(row.GhiChuNhanVien);
@@ -3220,6 +5776,8 @@ function updateAttendanceByManager(data) {
     }
     if (!row) return { success: false, message: 'Không tìm thấy dòng chấm công.' };
 
+    var chanKhoa = checkKyKhoa_('CONG', normalizeDate_(row.Ngay)); if (chanKhoa) return chanKhoa; // V5 P4
+
     // Giờ mới: nếu không gửi lên thì giữ giá trị cũ
     var gioVao = (data.gioVao !== undefined && data.gioVao !== null && data.gioVao !== '') ? normalizeStr_(data.gioVao) : normalizeStr_(row.GioVao);
     var gioRa = (data.gioRa !== undefined && data.gioRa !== null && data.gioRa !== '') ? normalizeStr_(data.gioRa) : normalizeStr_(row.GioRa);
@@ -3290,6 +5848,7 @@ function createAttendanceByManager(data) {
 
     var ngay = normalizeDate_(data.ngay);
     if (!isValidDateStr_(ngay)) return { success: false, message: 'Ngày không hợp lệ.' };
+    var chanKhoa = checkKyKhoa_('CONG', ngay); if (chanKhoa) return chanKhoa; // V5 P4
     if (findAttendanceRow_(target.UserID, ngay)) {
       return { success: false, message: 'Nhân viên đã có dòng chấm công ngày này. Hãy dùng chức năng Sửa.' };
     }
@@ -3446,7 +6005,10 @@ function buildEmployeePayload_(r) {
     soTaiKhoan: normalizeStr_(r.SoTaiKhoan),
     tenNganHang: normalizeStr_(r.TenNganHang),
     trangThaiLamViec: normalizeStr_(r.TrangThaiLamViec),
-    ghiChu: normalizeStr_(r.GhiChu)
+    ghiChu: normalizeStr_(r.GhiChu),
+    // V4.0: 2 cột nối cuối NHAN_VIEN (rỗng nếu chưa chạy setupSheetsV4 / chưa nhập)
+    ngaySinh: normalizeDate_(r.NgaySinh),
+    ngayKetThucThuViec: normalizeDate_(r.NgayKetThucThuViec)
   };
 }
 
@@ -3556,6 +6118,8 @@ function createEmployee(data) {
       TenNganHang: normalizeStr_(data.tenNganHang),
       TrangThaiLamViec: 'Đang làm',
       GhiChu: normalizeStr_(data.ghiChu),
+      NgaySinh: normalizeDate_(data.ngaySinh),
+      NgayKetThucThuViec: normalizeDate_(data.ngayKetThucThuViec),
       ThoiGianTao: thoiGian, ThoiGianCapNhat: thoiGian
     });
     writeAttendanceHistory({
@@ -3613,6 +6177,8 @@ function updateEmployee(data) {
     if (data.tenNganHang !== undefined) capNhat.TenNganHang = normalizeStr_(data.tenNganHang);
     if (data.trangThaiLamViec !== undefined) capNhat.TrangThaiLamViec = normalizeStr_(data.trangThaiLamViec);
     if (data.ghiChu !== undefined) capNhat.GhiChu = normalizeStr_(data.ghiChu);
+    if (data.ngaySinh !== undefined) capNhat.NgaySinh = normalizeDate_(data.ngaySinh);
+    if (data.ngayKetThucThuViec !== undefined) capNhat.NgayKetThucThuViec = normalizeDate_(data.ngayKetThucThuViec);
 
     var row = findEmployeeRow_(targetID);
     if (row) {
@@ -3937,6 +6503,7 @@ function markAdvancePaid(data) {
   if (!mgr) return { success: false, message: 'Bạn không có quyền xác nhận chi.' };
   var r = timTamUng_(data.tamUngID);
   if (!r) return { success: false, message: 'Không tìm thấy đề nghị tạm ứng.' };
+  var chanKhoa = checkKyKhoa_('LUONG', normalizeDate_(r.NgayDeNghi)); if (chanKhoa) return chanKhoa; // V5 P4 (Q chốt: chỉ markAdvancePaid)
   if (normalizeStr_(r.TrangThai) !== TT_TAM_UNG.DA_DUYET) {
     return { success: false, message: 'Chỉ đánh dấu "Đã chi" cho đề nghị "Đã duyệt".' };
   }
@@ -3981,6 +6548,7 @@ function createBonusPenalty(data) {
   if (soTien <= 0) return { success: false, message: 'Số tiền không hợp lệ.' };
   var range = monthRange_(data.thang, data.nam);
   if (!range) return { success: false, message: 'Tháng/năm không hợp lệ.' };
+  var chanKhoa = checkKyKhoa_('LUONG', range.tuNgay); if (chanKhoa) return chanKhoa; // V5 P4
   var lyDo = normalizeStr_(data.lyDo);
   if (!lyDo) return { success: false, message: 'Vui lòng nhập lý do.' };
 
@@ -4033,6 +6601,7 @@ function updateBonusPenalty(data) {
     if (normalizeStr_(rows[i].ThuongPhatID) === normalizeStr_(data.thuongPhatID)) { r = rows[i]; break; }
   }
   if (!r || normalizeStr_(r.TrangThai) === 'Deleted') return { success: false, message: 'Không tìm thấy khoản thưởng/phạt.' };
+  var chanKhoa = checkKyKhoa_('LUONG', normalizeStr_(r.Nam) + '-' + ('0' + Number(r.Thang)).slice(-2) + '-01'); if (chanKhoa) return chanKhoa; // V5 P4
 
   var update = {};
   if (data.soTien !== undefined) {
@@ -4067,6 +6636,7 @@ function deleteBonusPenalty(data) {
     if (normalizeStr_(rows[i].ThuongPhatID) === normalizeStr_(data.thuongPhatID)) { r = rows[i]; break; }
   }
   if (!r) return { success: false, message: 'Không tìm thấy khoản thưởng/phạt.' };
+  var chanKhoa = checkKyKhoa_('LUONG', normalizeStr_(r.Nam) + '-' + ('0' + Number(r.Thang)).slice(-2) + '-01'); if (chanKhoa) return chanKhoa; // V5 P4
 
   updateRowById(TEN_SHEET.THUONG_PHAT, 'ThuongPhatID', r.ThuongPhatID, { TrangThai: 'Deleted' });
   writeAttendanceHistory({
@@ -4298,6 +6868,7 @@ function approveOvertime(data) {
   if (!mgr) return { success: false, message: 'Bạn không có quyền duyệt tăng ca.' };
   var r = timTangCa_(data.tangCaID);
   if (!r) return { success: false, message: 'Không tìm thấy tăng ca.' };
+  var chanKhoa = checkKyKhoa_('CONG', normalizeDate_(r.Ngay)); if (chanKhoa) return chanKhoa; // V5 P4
   if (normalizeStr_(r.TrangThai) !== TT_TANG_CA.CHO_DUYET) {
     return { success: false, message: 'Chỉ duyệt được tăng ca "Chờ duyệt".' };
   }
@@ -4322,6 +6893,7 @@ function rejectOvertime(data) {
   if (!lyDo) return { success: false, message: 'Vui lòng nhập lý do từ chối.' };
   var r = timTangCa_(data.tangCaID);
   if (!r) return { success: false, message: 'Không tìm thấy tăng ca.' };
+  var chanKhoa = checkKyKhoa_('CONG', normalizeDate_(r.Ngay)); if (chanKhoa) return chanKhoa; // V5 P4
   if (normalizeStr_(r.TrangThai) !== TT_TANG_CA.CHO_DUYET) {
     return { success: false, message: 'Chỉ từ chối được tăng ca "Chờ duyệt".' };
   }

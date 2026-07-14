@@ -175,17 +175,23 @@
     <h3 id="homeHello">Xin chào</h3>
     <div class="line" id="homeInfo"></div>
   </div>
+  <!-- V5 Production: Home nhân viên "càng ít càng tốt" - đúng 4 nút (chỉ đạo mục 6) -->
   <div class="group-label">NHÂN VIÊN</div>
   <button class="menu-btn" onclick="openChamCong()"><span class="icon">⏱️</span> Chấm công</button>
-  <button class="menu-btn" onclick="openCongToi()"><span class="icon">🗓️</span> Công của tôi</button>
-  <button class="menu-btn" onclick="openDangKy()"><span class="icon">📝</span> Đăng ký nghỉ</button>
-  <button class="menu-btn" onclick="openMyLeaves()"><span class="icon">📅</span> Lịch nghỉ của tôi</button>
-  <button class="menu-btn" onclick="openTamUngToi()"><span class="icon">💵</span> Tạm ứng của tôi</button>
+  <button class="menu-btn" onclick="openDangKy()"><span class="icon">📝</span> Xin nghỉ</button>
+  <button class="menu-btn" onclick="openLuongNV()"><span class="icon">💰</span> Lương</button>
+  <button class="menu-btn" onclick="openKhac()"><span class="icon">📋</span> Khác</button>
   <!-- V4: mặc định ẩn, chỉ hiện khi flag module bật cho user này -->
   <button class="menu-btn hidden" id="mnThongBao" onclick="openThongBao()"><span class="icon">📢</span> Thông báo <span class="menu-badge hidden" id="tbBadge"></span></button>
 
   <div class="group-label hidden" id="lblQuanLy">QUẢN LÝ</div>
-  <!-- V4: nút quản lý mới, mặc định ẩn theo flag -->
+  <!-- V5: Dashboard PM một-màn (thay hub Việc cần xử lý cũ) -->
+  <button class="menu-btn hidden" id="mnPMDash" onclick="openPMDash()"><span class="icon">🎛️</span> Dashboard PM <span class="menu-badge hidden" id="pmdBadge"></span></button>
+  <button class="menu-btn hidden" id="mnDieuChinh" onclick="openDieuChinh()"><span class="icon">✏️</span> Sửa công (phiếu)</button>
+  <button class="menu-btn hidden" id="mnQuyetDinh" onclick="openQuyetDinh()"><span class="icon">📜</span> Quyết định nhân sự</button>
+  <button class="menu-btn hidden" id="mnChotKy" onclick="openChotKy()"><span class="icon">🔒</span> Chốt công & lương</button>
+  <button class="menu-btn hidden" id="mnOwner" onclick="openOwner()"><span class="icon">🏭</span> Dashboard chủ xưởng</button>
+  <!-- V4: nút quản lý cũ, mặc định ẩn theo flag -->
   <button class="menu-btn hidden" id="mnPending" onclick="openPending()"><span class="icon">📌</span> Việc cần xử lý <span class="menu-badge hidden" id="pendingBadge"></span></button>
   <button class="menu-btn hidden" id="mnBirthday" onclick="openBirthday()"><span class="icon">🎂</span> Sinh nhật & thử việc</button>
   <button class="menu-btn hidden" id="mnTBQL" onclick="openTBQL()"><span class="icon">📣</span> Quản lý thông báo</button>
@@ -207,6 +213,11 @@
 
 <!-- ================= 3. ĐĂNG KÝ NGHỈ ================= -->
 <div class="screen" id="scr-dangky">
+  <!-- V5: "Xin nghỉ" gộp 2 tab: Đăng ký + Lịch của tôi -->
+  <div class="btn-row" style="margin-bottom:4px">
+    <button class="btn small green" style="width:auto;padding:6px 14px">📝 Đăng ký</button>
+    <button class="btn small gray" style="width:auto;padding:6px 14px" onclick="openMyLeaves()">📋 Lịch nghỉ của tôi</button>
+  </div>
   <div class="card">
     <h3>Đăng ký nghỉ</h3>
     <label>Ngày nghỉ</label>
@@ -231,6 +242,10 @@
 
 <!-- ================= 4. LỊCH NGHỈ CỦA TÔI ================= -->
 <div class="screen" id="scr-mylist">
+  <div class="btn-row" style="margin-bottom:4px">
+    <button class="btn small gray" style="width:auto;padding:6px 14px" onclick="openDangKy()">📝 Đăng ký</button>
+    <button class="btn small green" style="width:auto;padding:6px 14px">📋 Lịch nghỉ của tôi</button>
+  </div>
   <div id="myListBox"></div>
 </div>
 
@@ -594,6 +609,8 @@
 <div class="screen" id="scr-cauhinhns">
   <!-- V4: bật/tắt module (FALSE / TEST / TRUE) -->
   <div id="moduleFlagBox"></div>
+  <!-- V5: chỉ tiêu KPI mặc định theo bộ phận (chỉ hiện khi flag KPI bật) -->
+  <div id="kpiConfigBox"></div>
 
   <!-- V3.3: Vị trí chấm công GPS -->
   <div class="card">
@@ -612,12 +629,9 @@
       <input type="checkbox" id="vtBatBuoc" checked>
       <span>Bắt buộc GPS khi chấm công</span>
     </div>
-    <div class="check-row">
-      <input type="checkbox" id="vtNgoai">
-      <span>Cho phép chấm ngoài vị trí (chỉ ghi cảnh báo, không chặn)</span>
-    </div>
     <button class="btn green" onclick="saveViTriCC()">💾 Lưu cấu hình vị trí</button>
     <p class="muted" style="margin-top:8px">GPS trong nhà xưởng có thể lệch vài chục mét — bán kính 400m là mức an toàn, ít chặn oan.</p>
+    <p class="muted">⚠ V5.0-RC2: chấm công là FAIL-CLOSED ĐƠN GIẢN — thiếu địa điểm hợp lệ / thiếu GPS / sai số lớn / ngoài bán kính đều bị chặn, KHÔNG có ngoại lệ. Trường hợp đặc biệt: PM sửa công (có lưu lịch sử). Sửa tay trên sheet có thể trễ tối đa 5 phút (cache); sửa qua app có hiệu lực ngay.</p>
   </div>
 
   <!-- V3.2: Ca làm theo phòng ban -->
@@ -702,6 +716,200 @@
     <button class="btn green" onclick="dongPopupTB(true)">✅ Đã đọc</button>
     <button class="btn gray small" onclick="dongPopupTB(false)">Để sau</button>
   </div>
+</div>
+
+<!-- ================================================== -->
+<!-- ============ CÁC MÀN HÌNH V5.0-RC2 =============== -->
+<!-- ================================================== -->
+
+<!-- V5: LƯƠNG CỦA TÔI (công + phiếu lương + ký nhận) -->
+<div class="screen" id="scr-luongnv">
+  <div class="card">
+    <h3>💰 Lương của tôi</h3>
+    <div class="filter-grid">
+      <div><label>Tháng</label><select id="lnvThang"></select></div>
+      <div><label>Năm</label><select id="lnvNam"></select></div>
+    </div>
+    <button class="btn small" onclick="loadLuongNV()">Xem phiếu lương</button>
+    <div class="btn-row" style="margin-top:6px">
+      <button class="btn small gray" style="width:auto;padding:6px 12px" onclick="openCongToi()">📅 Công của tôi</button>
+      <button class="btn small gray" style="width:auto;padding:6px 12px" onclick="openTamUngToi()">💵 Tạm ứng của tôi</button>
+    </div>
+  </div>
+  <div id="luongNVBox"></div>
+</div>
+
+<!-- V5: KHÁC (menu phụ nhân viên) -->
+<div class="screen" id="scr-khac">
+  <div id="khacBox"></div>
+</div>
+
+<!-- V5 P1: ĐỔI CA CỦA TÔI -->
+<div class="screen" id="scr-doica">
+  <div class="card">
+    <h3>🔄 Xin đổi ca 1 ngày</h3>
+    <label>Ngày</label>
+    <input type="date" id="dcaNgay">
+    <label>Ca đề nghị</label>
+    <select id="dcaCa" onchange="dcaDoiCa_()">
+      <option value="SANG">SÁNG</option>
+      <option value="CHIEU">CHIỀU</option>
+      <option value="FULL">CẢ NGÀY</option>
+      <option value="TUYCHINH">TÙY CHỈNH (nhập giờ)</option>
+    </select>
+    <div class="filter-grid hidden" id="dcaGioBox">
+      <div><label>Giờ bắt đầu</label><input type="time" id="dcaBD"></div>
+      <div><label>Giờ kết thúc</label><input type="time" id="dcaKT"></div>
+    </div>
+    <label>Lý do *</label>
+    <input type="text" id="dcaLyDo" placeholder="VD: có việc gia đình buổi sáng...">
+    <button class="btn green" onclick="guiDoiCa()">Gửi yêu cầu</button>
+  </div>
+  <div id="doiCaBox"></div>
+</div>
+
+<!-- V5 P1: XIN VỀ SỚM -->
+<div class="screen" id="scr-vesom">
+  <div class="card">
+    <h3>🏃 Xin về sớm</h3>
+    <label>Ngày</label>
+    <input type="date" id="vsNgay">
+    <label>Về sớm từ giờ</label>
+    <input type="time" id="vsGio">
+    <label>Lý do *</label>
+    <input type="text" id="vsLyDo" placeholder="VD: đón con, khám bệnh...">
+    <button class="btn green" onclick="guiVeSom()">Gửi đơn</button>
+  </div>
+  <div id="veSomBox"></div>
+</div>
+
+<!-- V5 P1: TĂNG CA CỦA TÔI -->
+<div class="screen" id="scr-tangcatoi">
+  <div class="card">
+    <h3>🌙 Đăng ký tăng ca</h3>
+    <label>Ngày</label>
+    <input type="date" id="tctNgay">
+    <div class="filter-grid">
+      <div><label>Từ giờ</label><input type="time" id="tctBD"></div>
+      <div><label>Đến giờ</label><input type="time" id="tctKT"></div>
+    </div>
+    <label>Lý do *</label>
+    <input type="text" id="tctLyDo" placeholder="VD: chạy gấp đơn in...">
+    <button class="btn green" onclick="guiTangCaToi()">Gửi đăng ký</button>
+  </div>
+  <div id="tangCaToiBox"></div>
+</div>
+
+<!-- V5 P1: DASHBOARD PM (một màn) -->
+<div class="screen" id="scr-pmdash">
+  <div id="pmdBox"></div>
+</div>
+
+<!-- V5 P2: PHIẾU SỬA CÔNG (điều chỉnh 2 cấp - UI lời thường) -->
+<div class="screen" id="scr-dieuchinh">
+  <div class="card">
+    <h3>✏️ Tạo phiếu sửa công</h3>
+    <label>Nhân viên</label>
+    <select id="pdcNV"></select>
+    <label>Ngày</label>
+    <input type="date" id="pdcNgay">
+    <label>Nội dung sửa</label>
+    <select id="pdcLoai" onchange="pdcDoiLoai_()">
+      <option value="BuCheckin">Bù giờ vào (quên chấm) - không đổi tiền</option>
+      <option value="BuCheckout">Bù giờ ra (quên chấm) - không đổi tiền</option>
+      <option value="MienDiTre">Miễn ghi nhận đi trễ - không đổi tiền</option>
+      <option value="MienVeSom">Miễn ghi nhận về sớm - không đổi tiền</option>
+      <option value="GhiChu">Ghi chú xác minh - không đổi tiền</option>
+      <option value="BoSungCong">Đặt lại giờ công của ngày - ĐỔI TIỀN, chờ chủ xưởng</option>
+      <option value="DieuChinhOT">Điều chỉnh giờ tăng ca - ĐỔI TIỀN, chờ chủ xưởng</option>
+    </select>
+    <label id="pdcGiaTriLbl">Giờ mới (HH:mm)</label>
+    <input type="text" id="pdcGiaTri" placeholder="VD: 07:30">
+    <label>Lý do * (lưu lịch sử)</label>
+    <input type="text" id="pdcLyDo" placeholder="VD: máy hết pin, quên chấm - đã xác minh với tổ trưởng">
+    <button class="btn green" onclick="taoPhieuDC()">Tạo phiếu</button>
+    <p class="muted" style="margin-top:6px">Phiếu KHÔNG đổi tiền: hiệu lực ngay. Phiếu ĐỔI TIỀN: chờ chủ xưởng duyệt. Mọi phiếu đều lưu giá trị cũ/mới + người + lý do, không xóa được - chỉ vô hiệu.</p>
+  </div>
+  <div id="phieuDCBox"></div>
+</div>
+
+<!-- V5 P3: QUYẾT ĐỊNH NHÂN SỰ + LỊCH SỬ LƯƠNG -->
+<div class="screen" id="scr-quyetdinh">
+  <div class="card">
+    <h3>📜 Đề xuất quyết định nhân sự</h3>
+    <label>Nhân viên</label>
+    <select id="qdNV"></select>
+    <label>Loại quyết định</label>
+    <select id="qdLoai" onchange="qdDoiLoai_()">
+      <option value="ChinhThuc">Chuyển chính thức</option>
+      <option value="GiaHanThuViec">Gia hạn thử việc</option>
+      <option value="TangLuong">Tăng lương</option>
+      <option value="GiamLuong">Giảm lương</option>
+      <option value="DieuChinhPhuCap">Điều chỉnh phụ cấp</option>
+      <option value="ChuyenPhongBan">Chuyển phòng ban</option>
+      <option value="DoiChucVu">Đổi chức vụ</option>
+      <option value="DoiCaMacDinh">Đổi ca mặc định</option>
+      <option value="TamNghi">Tạm nghỉ</option>
+      <option value="NghiViec">Nghỉ việc</option>
+    </select>
+    <label>Hiệu lực từ ngày</label>
+    <input type="date" id="qdHieuLuc">
+    <div id="qdLuongBox">
+      <div class="filter-grid">
+        <div><label>Lương tháng mới (đ)</label><input type="text" id="qdLuongCT" inputmode="numeric" placeholder="VD: 9000000"></div>
+        <div><label>Tỷ lệ % (thử việc 85)</label><input type="number" id="qdTyLe" inputmode="numeric" placeholder="100"></div>
+      </div>
+      <div class="filter-grid">
+        <div><label>Lương theo giờ (đ, nếu có)</label><input type="text" id="qdLuongGio" inputmode="numeric" placeholder="0"></div>
+        <div><label>Phụ cấp cố định (đ)</label><input type="text" id="qdPhuCap" inputmode="numeric" placeholder="0"></div>
+      </div>
+    </div>
+    <div id="qdNoiDungBox" class="hidden">
+      <label>Nội dung mới</label>
+      <input type="text" id="qdNoiDung" placeholder="VD: KyThuat / Tổ trưởng / ngày kết thúc thử việc mới...">
+    </div>
+    <label>Lý do *</label>
+    <input type="text" id="qdLyDo" placeholder="VD: hết thử việc đạt yêu cầu / đến kỳ tăng lương 6 tháng...">
+    <button class="btn green" onclick="taoQD()">Gửi đề xuất (chủ xưởng duyệt)</button>
+  </div>
+  <div class="card">
+    <h3>🧾 Lịch sử lương nhân viên</h3>
+    <select id="lslNV"></select>
+    <button class="btn small" onclick="xemLichSuLuong()">Xem lịch sử lương</button>
+    <div id="lichSuLuongBox"></div>
+  </div>
+  <div id="quyetDinhBox"></div>
+</div>
+
+<!-- V5 P4: CHỐT CÔNG & LƯƠNG -->
+<div class="screen" id="scr-chotky">
+  <div class="card">
+    <h3>🔒 Chốt công & lương tháng</h3>
+    <div class="filter-grid">
+      <div><label>Tháng</label><select id="ckThang"></select></div>
+      <div><label>Năm</label><select id="ckNam"></select></div>
+    </div>
+    <button class="btn small" onclick="loadChotKy()">Xem trạng thái</button>
+    <div id="ckTrangThai"></div>
+    <div class="btn-row" style="margin-top:6px">
+      <button class="btn small" style="width:auto;padding:6px 12px" onclick="xemBangLuongV5()">🧮 Bảng lương (trước chốt)</button>
+      <button class="btn small gray" style="width:auto;padding:6px 12px" onclick="xemBangLuongDaChot()">📄 Bảng đã chốt</button>
+      <button class="btn small gray" style="width:auto;padding:6px 12px" onclick="copyTSVLuong()">📋 Copy dán Excel</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn small green" style="width:auto;padding:6px 12px" onclick="chotCong()">✅ Chốt CÔNG</button>
+      <button class="btn small green" style="width:auto;padding:6px 12px" onclick="chotLuong()">💰 Chốt LƯƠNG (snapshot)</button>
+      <button class="btn small red" style="width:auto;padding:6px 12px" onclick="moKhoaKy('CONG')">🔓 Mở khóa công</button>
+      <button class="btn small red" style="width:auto;padding:6px 12px" onclick="moKhoaKy('LUONG')">🔓 Mở khóa lương</button>
+    </div>
+    <p class="muted" style="margin-top:6px">Chốt CÔNG trước → chốt LƯƠNG (tạo snapshot, nhân viên ký nhận). Mở khóa: chỉ chủ xưởng, bản chốt cũ giữ nguyên làm lịch sử, chốt lại tạo bản mới - nhân viên ký lại.</p>
+  </div>
+  <div id="chotKyBox"></div>
+</div>
+
+<!-- V5 P4: DASHBOARD CHỦ XƯỞNG (bản gọn) -->
+<div class="screen" id="scr-owner">
+  <div id="ownerBox"></div>
 </div>
 
 <!-- ================= LOADING & TOAST ================= -->
@@ -1792,12 +2000,16 @@ async function loadChamCong() {
   }
   if (!d.choPhepChamCong) html += '<div class="alert orange">Chấm công đang tạm khóa bởi quản lý.</div>';
 
-  // V3.3: thông tin GPS
+  // V5.0-RC2: thông tin GPS fail-closed đơn giản
   gpsCC = d.gps || null;
-  if (gpsCC && gpsCC.batBuocGPS) {
-    html += gpsCC.daCauHinhToaDo
-      ? '<div class="line muted" style="margin-top:6px">📍 Chấm công cần bật định vị GPS (trong bán kính ' + gpsCC.banKinhMet + 'm quanh ' + escapeHtml(gpsCC.tenDiaDiem || 'xưởng') + ').</div>'
-      : '<div class="alert orange">📍 Bắt buộc GPS nhưng CHƯA cấu hình tọa độ xưởng. Quản lý vào Cấu hình nhân sự → Vị trí chấm công để thiết lập.</div>';
+  if (gpsCC) {
+    if (!gpsCC.daCauHinhToaDo) {
+      html += '<div class="alert red">📍 ' + (gpsCC.loiCauHinh === 'DU_LIEU_SAI'
+        ? 'Cấu hình địa điểm chấm công KHÔNG hợp lệ - không thể chấm. Báo quản lý kiểm tra Cấu hình nhân sự → Vị trí chấm công.'
+        : 'CHƯA cấu hình địa điểm chấm công - không thể chấm. Báo quản lý thiết lập trước.') + '</div>';
+    } else {
+      html += '<div class="line muted" style="margin-top:6px">📍 Bắt buộc định vị GPS trong bán kính ' + gpsCC.banKinhMet + 'm quanh ' + escapeHtml(gpsCC.tenDiaDiem || 'xưởng') + '. Trường hợp đặc biệt: báo quản lý sửa công (có lưu lịch sử).</div>';
+    }
   }
   $('ccBox').innerHTML = html;
 }
@@ -1829,10 +2041,10 @@ async function guiChamCong_(action) {
   toast('Đang lấy vị trí của bạn...');
   const vt = await layViTri_();
 
-  // Nơi làm việc bắt buộc GPS -> không có vị trí thì chặn ngay tại frontend
-  // (backend vẫn chặn lần nữa, đây chỉ là lớp báo lỗi sớm cho dễ hiểu)
-  if (vt.err && gpsCC && gpsCC.batBuocGPS) { alert(vt.err); return; }
-  if (!vt.err) toast('Đã có vị trí, đang chấm công...');
+  // V5.0-RC2 fail-closed đơn giản: không có vị trí thì chặn ngay tại frontend,
+  // KHÔNG gửi request "thử vận may" (backend vẫn kiểm lần nữa)
+  if (vt.err) { alert(vt.err); return; }
+  toast('Đã có vị trí, đang chấm công...');
 
   const res = await api(action, {
     userID: user.userID,
@@ -2554,6 +2766,7 @@ async function openCauHinhNS() {
   fillSelect($('capbPhongBan'), options.phongBans, p => p, p => p);
   showScreen('scr-cauhinhns', 'Cấu hình nhân sự');
   loadModuleFlagsCard(); // V4: card bật/tắt module
+  loadKPIConfigCard();   // V5: chỉ tiêu KPI (tự ẩn khi flag KPI tắt)
   loadViTriCC();
   loadCaPhongBan();
   loadCauHinhNS();
@@ -2581,8 +2794,7 @@ async function loadViTriCC() {
   $('vtHienTai').innerHTML = daCoToaDo
     ? '<div class="alert green">✅ <b>' + escapeHtml(vtData.tenDiaDiem) + '</b>: (' + escapeHtml(vtData.viDo) + ', ' + escapeHtml(vtData.kinhDo) + ')' +
       ' · bán kính <b>' + escapeHtml(vtData.banKinhMet || '400') + 'm</b>' +
-      ' · ' + (vtData.batBuocGPS ? 'bắt buộc GPS' : 'KHÔNG bắt buộc GPS') +
-      (vtData.choPhepChamCongNgoaiViTri ? ' · cho phép chấm ngoài vị trí' : '') +
+      ' · ' + (vtData.batBuocGPS ? 'bắt buộc GPS' : '⚠ CHƯA bật bắt buộc GPS (dòng sẽ bị coi là không hợp lệ - chấm công bị chặn)') +
       (vtData.thoiGianCapNhat ? '<br><span class="muted">Cập nhật: ' + escapeHtml(vtData.thoiGianCapNhat) + '</span>' : '') +
       '</div>'
     : '<div class="alert orange">⚠ Chưa có tọa độ xưởng — nhân viên sẽ KHÔNG chấm công được khi đang bắt buộc GPS. Đứng tại xưởng và bấm nút bên dưới.</div>';
@@ -2593,7 +2805,6 @@ async function loadViTriCC() {
   $('vtKinhDo').value = vtData.kinhDo;
   $('vtBanKinh').value = vtData.banKinhMet || 400;
   $('vtBatBuoc').checked = vtData.batBuocGPS;
-  $('vtNgoai').checked = vtData.choPhepChamCongNgoaiViTri;
 }
 
 async function layViTriLamXuong() {
@@ -2619,12 +2830,13 @@ async function saveViTriCC() {
     kinhDo: $('vtKinhDo').value.trim(),
     banKinhMet: $('vtBanKinh').value || 400,
     batBuocGPS: $('vtBatBuoc').checked,
-    choPhepChamCongNgoaiViTri: $('vtNgoai').checked,
     trangThai: 'Active'
   });
   res.success ? toast(res.message) : alert(res.message);
   loadViTriCC();
 }
+
+/* (V5.0-RC2: khối JS ngoại lệ GPS V4.0.2 đã gỡ - GPS chỉ còn fail-closed đơn giản) */
 
 /* ---- V3.2: Ca làm theo phòng ban ---- */
 let caPBData = [];
@@ -2778,7 +2990,8 @@ let flagsUserID = null;
 
 function resetV4UI_() {
   moduleFlags = {}; moduleStates = {};
-  ['mnThongBao', 'mnPending', 'mnBirthday', 'mnTBQL', 'tbBadge', 'pendingBadge'].forEach(id => {
+  ['mnThongBao', 'mnPending', 'mnBirthday', 'mnTBQL', 'tbBadge', 'pendingBadge',
+   'mnPMDash', 'mnDieuChinh', 'mnQuyetDinh', 'mnChotKy', 'mnOwner', 'pmdBadge'].forEach(id => {
     const el = $(id);
     if (el) el.classList.add('hidden');
   });
@@ -2800,11 +3013,25 @@ async function loadV4HomeExtras() {
       moduleFlags[m.module] = m.duocDung === true;
       if (m.trangThai) moduleStates[m.module] = m.trangThai;
     });
+    // RC2: chẩn đoán - nếu trạng thái thô là TEST/TRUE mà backend trả "không được dùng"
+    // thì log rõ để soi (theo thiết kế không thể xảy ra với tài khoản quản lý)
+    Object.keys(moduleStates).forEach(k => {
+      if (moduleStates[k] !== 'FALSE' && !moduleFlags[k]) {
+        console.warn('[V4] Module ' + k + ' trạng thái ' + moduleStates[k] + ' nhưng duocDung=false cho user này');
+      }
+    });
     const laQL = laQuanLyFE_();
     $('mnThongBao').classList.toggle('hidden', !moduleFlags.Announcement);
     $('mnPending').classList.toggle('hidden', !(moduleFlags.ReminderCenter && laQL));
     $('mnBirthday').classList.toggle('hidden', !((moduleFlags.Birthday || moduleFlags.Probation) && laQL));
     $('mnTBQL').classList.toggle('hidden', !(moduleFlags.Announcement && (user.duocDuyetNghi || user.duocSuaCauHinh)));
+
+    // V5.0-RC2: nút V5 theo flag + quyền (flag FALSE = ẩn, app như V3.3.3)
+    $('mnPMDash').classList.toggle('hidden', !(moduleFlags.ReminderCenter && laQL));
+    $('mnDieuChinh').classList.toggle('hidden', !(moduleFlags.AttendanceV2 && user.duocSuaCong === true));
+    $('mnQuyetDinh').classList.toggle('hidden', !(moduleFlags.SalaryHistory && laQL));
+    $('mnChotKy').classList.toggle('hidden', !(moduleFlags.PayrollLock && (user.duocSuaCong === true || user.duocChotLuong === true)));
+    $('mnOwner').classList.toggle('hidden', !(moduleFlags.OwnerDashboard && user.duocXemBangLuong === true));
 
     // Gọi ngầm tiếp theo CHỈ khi flag bật (hợp đồng: flag FALSE = không request ngầm)
     if (moduleFlags.ReminderCenter && laQL) loadPendingBadge();
@@ -2818,8 +3045,11 @@ async function loadPendingBadge() {
     if (res.success && res.data && res.data.tongViec > 0) {
       $('pendingBadge').textContent = res.data.tongViec;
       $('pendingBadge').classList.remove('hidden');
+      $('pmdBadge').textContent = res.data.tongViec; // V5: badge Dashboard PM dùng chung số
+      $('pmdBadge').classList.remove('hidden');
     } else {
       $('pendingBadge').classList.add('hidden');
+      $('pmdBadge').classList.add('hidden');
     }
   } catch (e) { /* im lặng */ }
 }
@@ -3084,13 +3314,29 @@ async function loadModuleFlagsCard() {
     '<p class="muted">TEST = chỉ chủ xưởng/quản lý thấy để kiểm thử trên production. Nhân viên thường không thấy.</p>';
   res.data.forEach(m => {
     const st = m.trangThai || 'FALSE';
+    // RC2: hiện thêm "backend có cho user này dùng không" để chẩn đoán tại chỗ
     html += '<div class="line" style="display:flex;justify-content:space-between;align-items:center;gap:8px">' +
-      '<span><b>' + escapeHtml(m.module) + '</b> <span class="badge ' + mau[st] + '">' + st + '</span> <span class="muted">' + moTa[st] + '</span></span>' +
+      '<span><b>' + escapeHtml(m.module) + '</b> <span class="badge ' + mau[st] + '">' + st + '</span>' +
+      ' <span class="muted">' + moTa[st] + ' · hiện với bạn: ' + (m.duocDung ? '✅' : '—') + '</span></span>' +
       '<button class="btn small" style="width:auto;margin:0;padding:6px 12px" onclick="doiModuleFlag(\'' + m.module + '\',\'' + st + '\')">Đổi</button>' +
       '</div>';
   });
-  html += '</div>';
+  // RC2: hướng dẫn xử lý khi sheet và app "nhìn khác nhau"
+  html += '<p class="muted" style="margin-top:8px">Nếu bạn SỬA TAY trên Google Sheet mà app chưa nhận: ' +
+    'đợi tối đa 5 phút (cache) hoặc bấm "Đổi" tại đây để app tự ghi lại (nhận ngay). ' +
+    'Kiểm tra sheet CAU_HINH_MODULE: KHÔNG có dòng trùng tên module (dòng ĐẦU TIÊN thắng) ' +
+    'và tên module đúng hoa/thường (VD "ReminderCenter", không phải "remindercenter").</p>' +
+    '<button class="btn small gray" onclick="lamMoiFlags()">🔄 Làm mới flags + menu Home</button>' +
+    '</div>';
   $('moduleFlagBox').innerHTML = html;
+}
+
+// RC2: nạp lại flags từ backend và cập nhật menu Home ngay
+async function lamMoiFlags() {
+  toast('Đang làm mới flags...');
+  await loadV4HomeExtras();
+  await loadModuleFlagsCard();
+  toast('Đã làm mới. Kiểm tra cột "hiện với bạn".');
 }
 
 async function doiModuleFlag(module, hienTai) {
@@ -3100,6 +3346,667 @@ async function doiModuleFlag(module, hienTai) {
   res.success ? toast(res.message) : alert(res.message);
   loadModuleFlagsCard();
   loadV4HomeExtras(); // cập nhật lại menu Home ngay
+}
+
+/* ====================================================
+ * ============ JS V5.0-RC2 ===========================
+ * Frontend cho các module V5 đã có backend. Mọi màn đều
+ * đứng sau flag (nút ẩn khi flag FALSE) và backend tự
+ * chặn thêm 1 lớp. Flag FALSE toàn bộ = app như V3.3.3.
+ * ==================================================== */
+
+function badgeV5_(tt) {
+  const map = {
+    'ChoDuyet': ['Đang chờ chủ xưởng', 'cho-duyet'],
+    'HieuLuc': ['Có hiệu lực', 'da-duyet'],
+    'DaDuyet': ['Đã duyệt', 'da-duyet'],
+    'TuChoi': ['Từ chối', 'tu-choi'],
+    'VoHieu': ['Đã vô hiệu', 'da-huy']
+  };
+  const m = map[tt] || [tt, 'da-huy'];
+  return '<span class="badge ' + m[1] + '">' + escapeHtml(m[0]) + '</span>';
+}
+
+function dsNhanVienSelect_(selId) {
+  fillSelect($(selId), (options && options.nhanViens) || [], n => n.userID, n => n.hoTen + ' (' + n.phongBan + ')');
+}
+
+/* ---------- V5: LƯƠNG CỦA TÔI (openLuongNV) ---------- */
+async function openLuongNV() {
+  fillThangNam('lnvThang', 'lnvNam');
+  showScreen('scr-luongnv', 'Lương của tôi');
+  loadLuongNV();
+}
+
+async function loadLuongNV() {
+  const box = $('luongNVBox');
+  if (!moduleFlags.SalaryConfirm) {
+    box.innerHTML = '<div class="alert blue">Phiếu lương điện tử chưa được bật cho xưởng. Xem "Công của tôi" ở nút trên, hoặc hỏi quản lý về bảng lương.</div>';
+    return;
+  }
+  box.innerHTML = '<div class="muted" style="margin-top:12px">Đang tải phiếu lương...</div>';
+  const res = await api('getMyPayslip', { userID: user.userID, month: $('lnvThang').value, year: $('lnvNam').value });
+  if (!res.success) { box.innerHTML = '<div class="alert blue">' + escapeHtml(res.message) + '</div>'; return; }
+  const p = res.data;
+  let html = '<div class="card" id="phieuLuongIn">' +
+    '<h3>Phiếu lương tháng ' + p.thang + '/' + p.nam + (p.lanChot > 1 ? ' (bản chốt lần ' + p.lanChot + ')' : '') + '</h3>' +
+    '<div class="line">👤 <b>' + escapeHtml(p.hoTen) + '</b> · ' + escapeHtml(p.phongBan) + ' · ' + escapeHtml(p.hinhThucLuong) + '</div>' +
+    '<div class="line">Ngày công: <b>' + p.tongCong + '</b> · Giờ làm: <b>' + p.tongGioLam + 'h</b> · OT: <b>' + p.tongGioTangCa + 'h</b></div>' +
+    '<div class="line">Phép đã nghỉ: <b>' + p.nghiCoPhep + '</b> ngày' + (p.tienPhepKhongNghi > 0 ? ' · + Phép không nghỉ: <b>' + fmtMoney(p.tienPhepKhongNghi) + ' đ</b>' : '') + '</div>' +
+    '<div class="line">Thưởng: <b>' + fmtMoney(p.thuong) + '</b> · Phụ cấp: <b>' + fmtMoney(p.phuCap + p.phuCapCoDinh) + '</b> · Phạt: <b>' + fmtMoney(p.phat) + '</b> · Khấu trừ: <b>' + fmtMoney(p.khauTru) + '</b></div>' +
+    '<div class="line">Tạm ứng đã nhận: <b>' + fmtMoney(p.tamUngDaChi) + ' đ</b></div>' +
+    '<div class="line" style="font-size:1.15em;margin-top:6px">💵 THỰC NHẬN: <b>' + fmtMoney(p.thucNhan) + ' đ</b> <span class="muted">(chưa gồm thuế/BHXH)</span></div>';
+  if (p.giaiDoan && p.giaiDoan.length > 1) {
+    html += '<div class="section-title" style="margin-top:8px">Chi tiết từng giai đoạn</div>';
+    p.giaiDoan.forEach(g => { html += '<div class="line muted">' + escapeHtml(g.moTa) + ' = ' + fmtMoney(g.tien) + ' đ</div>'; });
+  }
+  if (p.canhBao) html += '<div class="alert orange">' + escapeHtml(p.canhBao) + '</div>';
+  html += p.daKyNhan
+    ? '<div class="alert green">✅ Bạn đã ký nhận lúc ' + escapeHtml(p.thoiGianKyNhan) + '.</div>'
+    : '<button class="btn green" onclick="kyNhanLuong(\'' + p.bangLuongID + '\')">✅ Tôi đã nhận lương</button>';
+  html += '<button class="btn gray small" onclick="window.print()">🖨 In phiếu lương</button>';
+  html += '</div>';
+  box.innerHTML = html;
+}
+
+async function kyNhanLuong(bangLuongID) {
+  if (!confirm('Xác nhận: bạn ĐÃ NHẬN đủ lương của phiếu này?\nSau khi ký sẽ không gỡ được.')) return;
+  const res = await api('confirmSalaryReceived', {
+    userID: user.userID, bangLuongID: bangLuongID,
+    thietBi: (navigator.userAgent || '').slice(0, 120)
+  });
+  res.success ? toast(res.message) : alert(res.message);
+  loadLuongNV();
+}
+
+/* ---------- V5: KHÁC (menu phụ) ---------- */
+function openKhac() {
+  let html = '<div class="card"><h3>📋 Chức năng khác</h3></div>' +
+    '<button class="menu-btn" onclick="openMyLeaves()"><span class="icon">📋</span> Lịch nghỉ của tôi</button>' +
+    '<button class="menu-btn" onclick="openCongToi()"><span class="icon">📅</span> Công của tôi</button>' +
+    '<button class="menu-btn" onclick="openTamUngToi()"><span class="icon">💵</span> Tạm ứng của tôi</button>';
+  if (moduleFlags.Overtime) html += '<button class="menu-btn" onclick="openTangCaToi()"><span class="icon">🌙</span> Tăng ca của tôi</button>';
+  if (moduleFlags.ShiftRequest) html += '<button class="menu-btn" onclick="openDoiCa()"><span class="icon">🔄</span> Đổi ca của tôi</button>';
+  if (moduleFlags.EarlyLeave) html += '<button class="menu-btn" onclick="openVeSom()"><span class="icon">🏃</span> Xin về sớm</button>';
+  if (moduleFlags.Announcement) html += '<button class="menu-btn" onclick="openThongBao()"><span class="icon">📢</span> Thông báo</button>';
+  $('khacBox').innerHTML = html;
+  showScreen('scr-khac', 'Khác');
+}
+
+/* ---------- V5 P1: ĐỔI CA CỦA TÔI ---------- */
+function dcaDoiCa_() { $('dcaGioBox').classList.toggle('hidden', $('dcaCa').value !== 'TUYCHINH'); }
+
+async function openDoiCa() {
+  $('dcaNgay').value = todayStr();
+  showScreen('scr-doica', 'Đổi ca của tôi');
+  loadDoiCa();
+}
+
+async function loadDoiCa() {
+  $('doiCaBox').innerHTML = '<div class="muted" style="margin-top:12px">Đang tải...</div>';
+  const res = await api('getMyShiftChanges', { userID: user.userID });
+  if (!res.success) { $('doiCaBox').innerHTML = '<div class="alert red">' + escapeHtml(res.message) + '</div>'; return; }
+  let html = '<div class="section-title">Yêu cầu của tôi (' + res.data.length + ')</div>';
+  res.data.forEach(r => {
+    html += '<div class="card">' +
+      '<div class="line"><b>' + fmtDate(r.ngay) + '</b> → ca <b>' + escapeHtml(r.caDeNghi) + '</b>' +
+      (r.gioBatDau ? ' (' + escapeHtml(r.gioBatDau) + '-' + escapeHtml(r.gioKetThuc) + ')' : '') + ' ' + badgeHtml(r.trangThai, false) + '</div>' +
+      '<div class="line muted">' + escapeHtml(r.lyDo) + (r.lyDoTuChoi ? ' · Lý do từ chối: ' + escapeHtml(r.lyDoTuChoi) : '') + '</div>' +
+      (r.trangThai === 'Chờ duyệt' ? '<button class="btn red small" onclick="huyDoiCa(\'' + r.doiCaID + '\')">Hủy yêu cầu</button>' : '') +
+      '</div>';
+  });
+  if (!res.data.length) html += '<div class="alert blue">Chưa có yêu cầu đổi ca nào.</div>';
+  // Quản lý (được sửa công): xem thêm toàn xưởng để đối chiếu
+  if (user.duocSuaCong === true) {
+    const all = await api('getAllShiftChanges', { userID: user.userID, filters: {} });
+    if (all.success) {
+      html += '<div class="section-title">Toàn xưởng (' + all.data.length + ')</div>';
+      all.data.slice(0, 20).forEach(r => {
+        html += '<div class="line" style="border-left:3px solid #cfd8dc;padding-left:10px;margin-top:6px">' +
+          '<b>' + escapeHtml(r.hoTen) + '</b> · ' + fmtDate(r.ngay) + ' → ' + escapeHtml(r.caDeNghi) + ' ' + badgeHtml(r.trangThai, false) +
+          '<br><span class="muted">' + escapeHtml(r.lyDo) + '</span></div>';
+      });
+    }
+  }
+  $('doiCaBox').innerHTML = html;
+}
+
+async function guiDoiCa() {
+  const res = await api('submitShiftChange', {
+    userID: user.userID, ngay: $('dcaNgay').value, caDeNghi: $('dcaCa').value,
+    gioBatDau: $('dcaBD').value, gioKetThuc: $('dcaKT').value, lyDo: $('dcaLyDo').value.trim()
+  });
+  res.success ? toast(res.message) : alert(res.message);
+  if (res.success) { $('dcaLyDo').value = ''; loadDoiCa(); }
+}
+
+async function huyDoiCa(id) {
+  if (!confirm('Hủy yêu cầu đổi ca này?')) return;
+  const res = await api('cancelMyShiftChange', { userID: user.userID, doiCaID: id });
+  res.success ? toast(res.message) : alert(res.message);
+  loadDoiCa();
+}
+
+/* ---------- V5 P1: XIN VỀ SỚM ---------- */
+async function openVeSom() {
+  $('vsNgay').value = todayStr();
+  showScreen('scr-vesom', 'Xin về sớm');
+  loadVeSom();
+}
+
+async function loadVeSom() {
+  $('veSomBox').innerHTML = '<div class="muted" style="margin-top:12px">Đang tải...</div>';
+  const res = await api('getMyEarlyLeaves', { userID: user.userID });
+  if (!res.success) { $('veSomBox').innerHTML = '<div class="alert red">' + escapeHtml(res.message) + '</div>'; return; }
+  let html = '<div class="section-title">Đơn của tôi (' + res.data.length + ')</div>';
+  res.data.forEach(r => {
+    html += '<div class="card">' +
+      '<div class="line"><b>' + fmtDate(r.ngay) + '</b> · về từ <b>' + escapeHtml(r.gioVeSom) + '</b> ' + badgeHtml(r.trangThai, false) + '</div>' +
+      '<div class="line muted">' + escapeHtml(r.lyDo) + (r.lyDoTuChoi ? ' · Lý do từ chối: ' + escapeHtml(r.lyDoTuChoi) : '') + '</div>' +
+      (r.trangThai === 'Chờ duyệt' ? '<button class="btn red small" onclick="huyVeSom(\'' + r.veSomID + '\')">Hủy đơn</button>' : '') +
+      '</div>';
+  });
+  if (!res.data.length) html += '<div class="alert blue">Chưa có đơn về sớm nào.</div>';
+  if (user.duocSuaCong === true) {
+    const all = await api('getAllEarlyLeaves', { userID: user.userID, filters: {} });
+    if (all.success) {
+      html += '<div class="section-title">Toàn xưởng (' + all.data.length + ')</div>';
+      all.data.slice(0, 20).forEach(r => {
+        html += '<div class="line" style="border-left:3px solid #cfd8dc;padding-left:10px;margin-top:6px">' +
+          '<b>' + escapeHtml(r.hoTen) + '</b> · ' + fmtDate(r.ngay) + ' về từ ' + escapeHtml(r.gioVeSom) + ' ' + badgeHtml(r.trangThai, false) +
+          '<br><span class="muted">' + escapeHtml(r.lyDo) + '</span></div>';
+      });
+    }
+  }
+  $('veSomBox').innerHTML = html;
+}
+
+async function guiVeSom() {
+  const res = await api('submitEarlyLeave', {
+    userID: user.userID, ngay: $('vsNgay').value, gioVeSom: $('vsGio').value, lyDo: $('vsLyDo').value.trim()
+  });
+  res.success ? toast(res.message) : alert(res.message);
+  if (res.success) { $('vsLyDo').value = ''; loadVeSom(); }
+}
+
+async function huyVeSom(id) {
+  if (!confirm('Hủy đơn về sớm này?')) return;
+  const res = await api('cancelMyEarlyLeave', { userID: user.userID, veSomID: id });
+  res.success ? toast(res.message) : alert(res.message);
+  loadVeSom();
+}
+
+/* ---------- V5 P1: TĂNG CA CỦA TÔI ---------- */
+async function openTangCaToi() {
+  $('tctNgay').value = todayStr();
+  showScreen('scr-tangcatoi', 'Tăng ca của tôi');
+  loadTangCaToi();
+}
+
+async function loadTangCaToi() {
+  $('tangCaToiBox').innerHTML = '<div class="muted" style="margin-top:12px">Đang tải...</div>';
+  const res = await api('getOvertimeList', { userID: user.userID });
+  if (!res.success) { $('tangCaToiBox').innerHTML = '<div class="alert red">' + escapeHtml(res.message) + '</div>'; return; }
+  const ds = (res.data || []).filter(r => r.userID === user.userID);
+  let html = '<div class="section-title">Đăng ký của tôi (' + ds.length + ')</div>';
+  ds.forEach(r => {
+    html += '<div class="card">' +
+      '<div class="line"><b>' + fmtDate(r.ngay) + '</b> · ' + escapeHtml(r.gioBatDau) + '-' + escapeHtml(r.gioKetThuc) +
+      ' (<b>' + r.soGioTangCa + 'h</b>) ' + badgeHtml(r.trangThai, false) + '</div>' +
+      '<div class="line muted">' + escapeHtml(r.lyDo || '') + '</div>' +
+      (r.trangThai === 'Chờ duyệt' ? '<button class="btn red small" onclick="huyTangCaToi(\'' + r.tangCaID + '\')">Hủy đăng ký</button>' : '') +
+      '</div>';
+  });
+  $('tangCaToiBox').innerHTML = ds.length ? html : html + '<div class="alert blue">Chưa có đăng ký tăng ca nào.</div>';
+}
+
+async function guiTangCaToi() {
+  const res = await api('submitOvertimeRequest', {
+    userID: user.userID, ngay: $('tctNgay').value,
+    gioBatDau: $('tctBD').value, gioKetThuc: $('tctKT').value, lyDo: $('tctLyDo').value.trim()
+  });
+  res.success ? toast(res.message) : alert(res.message);
+  if (res.success) { $('tctLyDo').value = ''; loadTangCaToi(); }
+}
+
+async function huyTangCaToi(id) {
+  if (!confirm('Hủy đăng ký tăng ca này?')) return;
+  const res = await api('cancelMyOvertime', { userID: user.userID, tangCaID: id });
+  res.success ? toast(res.message) : alert(res.message);
+  loadTangCaToi();
+}
+
+/* ---------- V5: cấu hình chỉ tiêu KPI (trong Cấu hình nhân sự) ---------- */
+async function loadKPIConfigCard() {
+  const box = $('kpiConfigBox');
+  if (!moduleFlags.KPI || !user.duocSuaCauHinh) { box.innerHTML = ''; return; }
+  box.innerHTML = '<div class="muted">Đang tải chỉ tiêu KPI...</div>';
+  const res = await apiSilent('getKPIConfig', { userID: user.userID });
+  if (!res.success) { box.innerHTML = ''; return; }
+  let html = '<div class="card"><h3>📊 Chỉ tiêu KPI mặc định (bill/ngày)</h3>';
+  res.data.forEach((k, i) => {
+    html += '<div class="line" style="display:flex;align-items:center;gap:8px">' +
+      '<span style="flex:1"><b>' + escapeHtml(k.phongBan) + '</b></span>' +
+      '<input type="number" id="kpiCfg_' + i + '" value="' + k.chiTieuMacDinh + '" style="width:90px;margin:0" inputmode="numeric">' +
+      '<button class="btn small" style="width:auto;margin:0;padding:6px 10px" onclick="luuChiTieuKPI(\'' + escapeHtml(k.phongBan) + '\',' + i + ')">Lưu</button>' +
+      '</div>';
+  });
+  html += '<p class="muted" style="margin-top:6px">Ngày nào PM không nhập chỉ tiêu riêng thì dùng số mặc định này.</p></div>';
+  box.innerHTML = html;
+}
+
+async function luuChiTieuKPI(phongBan, idx) {
+  const res = await api('updateKPIConfig', { userID: user.userID, phongBan: phongBan, chiTieuMacDinh: $('kpiCfg_' + idx).value });
+  res.success ? toast(res.message) : alert(res.message);
+  loadKPIConfigCard();
+}
+
+/* ---------- V5 P1: DASHBOARD PM (một màn) ---------- */
+async function openPMDash() {
+  showScreen('scr-pmdash', 'Dashboard PM');
+  loadPMDash();
+}
+
+async function loadPMDash() {
+  $('pmdBox').innerHTML = '<div class="muted" style="margin-top:12px">Đang tải...</div>';
+  const res = await api('getPMDashboard', { userID: user.userID });
+  if (!res.success) { $('pmdBox').innerHTML = '<div class="alert red">' + escapeHtml(res.message) + '</div>'; return; }
+  const d = res.data;
+  let html = '';
+
+  // 1. KPI hôm nay (khi flag KPI bật)
+  if (d.kpi) {
+    html += '<div class="card"><h3>📊 KPI hôm nay (' + fmtDate(d.ngay) + ')</h3>';
+    if (!d.kpi.length) html += '<div class="muted">Chưa cấu hình chỉ tiêu KPI (sheet CAU_HINH_KPI).</div>';
+    d.kpi.forEach((k, i) => {
+      const pct = k.chiTieu > 0 ? Math.round(k.thucTe / k.chiTieu * 100) : 0;
+      const mau = pct >= 90 ? '#2e7d32' : pct >= 60 ? '#f9a825' : '#c62828';
+      html += '<div class="line" style="display:flex;align-items:center;gap:8px">' +
+        '<span style="flex:1"><b>' + escapeHtml(k.phongBan) + '</b> ' + k.thucTe + '/' + k.chiTieu + ' bill' +
+        '<span style="display:block;height:6px;background:#eee;border-radius:3px;margin-top:3px"><span style="display:block;height:6px;border-radius:3px;width:' + Math.min(100, pct) + '%;background:' + mau + '"></span></span></span>' +
+        '<input type="number" id="kpiIn_' + i + '" value="' + k.thucTe + '" style="width:72px;margin:0" inputmode="numeric">' +
+        '<button class="btn small" style="width:auto;margin:0;padding:6px 10px" onclick="luuKPI(\'' + escapeHtml(k.phongBan) + '\',' + i + ')">Lưu</button>' +
+        '</div>';
+    });
+    html += '<div class="line" style="display:flex;align-items:center;gap:8px;margin-top:6px">' +
+      '<input type="date" id="kpiNgayKhac" style="margin:0">' +
+      '<button class="btn small gray" style="width:auto;margin:0;padding:6px 10px" onclick="xemKPINgay()">Xem KPI ngày khác</button></div>' +
+      '<div id="kpiNgayBox"></div>';
+    html += '</div>';
+  }
+
+  // 2. Cần xử lý (duyệt/từ chối tại chỗ)
+  html += '<div class="card"><h3>📌 Cần xử lý (' + d.canXuLy.length + ')</h3>';
+  if (!d.canXuLy.length) html += '<div class="alert green">Sạch việc! 🎉</div>';
+  d.canXuLy.forEach((v, i) => {
+    html += '<div class="line" style="border-left:3px solid #cfd8dc;padding-left:10px;margin-top:8px">' +
+      escapeHtml(v.moTa) +
+      '<div class="btn-row" style="margin-top:4px">' +
+      '<button class="btn green small" style="width:auto;padding:6px 12px" onclick="pmDuyet(\'' + v.loai + '\',\'' + v.id + '\')">✅ Duyệt</button>' +
+      '<button class="btn red small" style="width:auto;padding:6px 12px" onclick="pmTuChoi(\'' + v.loai + '\',\'' + v.id + '\')">❌ Từ chối</button>' +
+      '</div></div>';
+  });
+  html += '</div>';
+
+  // 3. Hôm nay
+  const th = d.homNay;
+  html += '<div class="card"><h3>📅 Hôm nay</h3>' +
+    '<div class="line">Đã vào: <b>' + th.daVao + '/' + th.tongActive + '</b> người</div>';
+  const khoi = [['⏰ Đi trễ', th.dsDiTre], ['🛌 Nghỉ hôm nay', th.dsNghi], ['❓ Chưa chấm vào', th.dsChuaVao], ['🚪 Chưa checkout', th.dsChuaRa]];
+  khoi.forEach(k => {
+    if (k[1].length) {
+      html += '<div class="line"><b>' + k[0] + ' (' + k[1].length + '):</b><br><span class="muted">' + k[1].map(escapeHtml).join('<br>') + '</span></div>';
+    }
+  });
+  html += '</div>';
+
+  // 4. Nhắc nhở (thử việc / tăng lương)
+  if (d.nhacNho && d.nhacNho.length) {
+    html += '<div class="card"><h3>🔔 Nhắc nhở</h3>';
+    d.nhacNho.forEach(n => { html += '<div class="line">' + escapeHtml(n) + '</div>'; });
+    html += '</div>';
+  }
+
+  // 5. Chốt ngày
+  html += '<div class="card">' +
+    (d.daChotHomNay ? '<div class="alert green">✅ Hôm nay đã chốt ngày (có thể chốt lại nếu cần).</div>' : '') +
+    '<button class="btn green" onclick="chotNgayFE()">✅ Chốt ngày (ghi nhận đã rà soát)</button>' +
+    '<p class="muted" style="margin-top:6px">Chốt ngày KHÔNG khóa dữ liệu - chỉ lưu lịch sử + sinh báo cáo. Còn việc tồn sẽ phải nhập lý do.</p>' +
+    '</div>';
+
+  $('pmdBox').innerHTML = html;
+}
+
+async function luuKPI(phongBan, idx) {
+  const v = $('kpiIn_' + idx).value;
+  const res = await api('updateKPI', { userID: user.userID, phongBan: phongBan, thucTe: v });
+  res.success ? toast(res.message) : alert(res.message);
+  loadPMDash();
+}
+
+async function xemKPINgay() {
+  const ngay = $('kpiNgayKhac').value;
+  if (!ngay) { toast('Chọn ngày trước.'); return; }
+  const res = await api('getKPIToday', { userID: user.userID, ngay: ngay });
+  if (!res.success) { alert(res.message); return; }
+  $('kpiNgayBox').innerHTML = '<div class="line muted">KPI ' + fmtDate(res.data.ngay) + ': ' +
+    (res.data.danhSach.length
+      ? res.data.danhSach.map(k => escapeHtml(k.phongBan) + ' ' + k.thucTe + '/' + k.chiTieu).join(' · ')
+      : 'không có dữ liệu') + '</div>';
+}
+
+// Duyệt/từ chối tại chỗ theo loại việc (đúng API + tên tham số của từng module)
+const PM_DUYET_MAP = {
+  nghi:      { api: 'approveLeave',       thamSo: id => ({ managerUserID: user.userID, leaveID: id, xacNhanCanhBao: true }) },
+  tangca:    { api: 'approveOvertime',    thamSo: id => ({ managerUserID: user.userID, tangCaID: id }) },
+  doica:     { api: 'approveShiftChange', thamSo: id => ({ userID: user.userID, doiCaID: id }) },
+  vesom:     { api: 'approveEarlyLeave',  thamSo: id => ({ userID: user.userID, veSomID: id }) },
+  phieuB:    { api: 'approveAdjustment',  thamSo: id => ({ userID: user.userID, phieuID: id }) },
+  quyetdinh: { api: 'approveDecision',    thamSo: id => ({ userID: user.userID, qdID: id }) }
+};
+const PM_TUCHOI_MAP = {
+  nghi:      { api: 'rejectLeave',       thamSo: (id, lyDo) => ({ managerUserID: user.userID, leaveID: id, lyDoTuChoi: lyDo }) },
+  tangca:    { api: 'rejectOvertime',    thamSo: (id, lyDo) => ({ managerUserID: user.userID, tangCaID: id, lyDo: lyDo }) },
+  doica:     { api: 'rejectShiftChange', thamSo: (id, lyDo) => ({ userID: user.userID, doiCaID: id, lyDo: lyDo }) },
+  vesom:     { api: 'rejectEarlyLeave',  thamSo: (id, lyDo) => ({ userID: user.userID, veSomID: id, lyDo: lyDo }) },
+  phieuB:    { api: 'rejectAdjustment',  thamSo: (id, lyDo) => ({ userID: user.userID, phieuID: id, lyDo: lyDo }) },
+  quyetdinh: { api: 'rejectDecision',    thamSo: (id, lyDo) => ({ userID: user.userID, qdID: id, lyDo: lyDo }) }
+};
+
+async function pmDuyet(loai, id) {
+  const m = PM_DUYET_MAP[loai];
+  if (!m) return;
+  if (!confirm('Duyệt mục này?')) return;
+  const res = await api(m.api, m.thamSo(id));
+  res.success ? toast(res.message) : alert(res.message);
+  loadPMDash();
+  loadPendingBadge();
+}
+
+async function pmTuChoi(loai, id) {
+  const m = PM_TUCHOI_MAP[loai];
+  if (!m) return;
+  const lyDo = prompt('Lý do từ chối (bắt buộc):');
+  if (lyDo === null) return;
+  if (!lyDo.trim()) { toast('Phải nhập lý do.'); return; }
+  const res = await api(m.api, m.thamSo(id, lyDo.trim()));
+  res.success ? toast(res.message) : alert(res.message);
+  loadPMDash();
+  loadPendingBadge();
+}
+
+async function chotNgayFE(lyDoTon) {
+  const res = await api('chotNgay', { userID: user.userID, lyDoTon: lyDoTon || '' });
+  if (!res.success) {
+    if (res.data && res.data.needLyDo) {
+      const lyDo = prompt(res.message + '\n\nLý do còn tồn:');
+      if (lyDo === null) return;
+      if (!lyDo.trim()) { toast('Phải nhập lý do.'); return; }
+      return chotNgayFE(lyDo.trim());
+    }
+    alert(res.message);
+    return;
+  }
+  toast(res.message);
+  if (res.data && res.data.baoCao && confirm('Copy báo cáo chốt ngày để dán Zalo?')) {
+    copyText(res.data.baoCao, 'báo cáo chốt ngày');
+  }
+  loadPMDash();
+}
+
+/* ---------- V5 P2: PHIẾU SỬA CÔNG ---------- */
+function pdcDoiLoai_() {
+  const loai = $('pdcLoai').value;
+  const lbl = $('pdcGiaTriLbl'), inp = $('pdcGiaTri');
+  if (loai === 'BuCheckin' || loai === 'BuCheckout') { lbl.textContent = 'Giờ mới (HH:mm)'; inp.placeholder = 'VD: 07:30'; }
+  else if (loai === 'BoSungCong') { lbl.textContent = 'Số giờ công của ngày'; inp.placeholder = 'VD: 8'; }
+  else if (loai === 'DieuChinhOT') { lbl.textContent = 'Số giờ tăng ca trả lương'; inp.placeholder = 'VD: 1.5'; }
+  else if (loai === 'GhiChu') { lbl.textContent = 'Nội dung ghi chú'; inp.placeholder = 'VD: đã xác minh có mặt tại xưởng'; }
+  else { lbl.textContent = 'Giá trị mới (bỏ trống nếu không cần)'; inp.placeholder = ''; }
+}
+
+async function openDieuChinh() {
+  if (!options) await loadOptions();
+  dsNhanVienSelect_('pdcNV');
+  $('pdcNgay').value = todayStr();
+  showScreen('scr-dieuchinh', 'Sửa công (phiếu)');
+  loadPhieuDC();
+}
+
+async function loadPhieuDC() {
+  $('phieuDCBox').innerHTML = '<div class="muted" style="margin-top:12px">Đang tải...</div>';
+  const res = await api('getAdjustments', { userID: user.userID });
+  if (!res.success) { $('phieuDCBox').innerHTML = '<div class="alert red">' + escapeHtml(res.message) + '</div>'; return; }
+  let html = '<div class="section-title">Phiếu gần đây (' + res.data.length + ')</div>';
+  res.data.slice(0, 30).forEach(r => {
+    html += '<div class="card">' +
+      '<div class="line"><b>' + escapeHtml(r.hoTen) + '</b> · ' + fmtDate(r.ngay) + ' ' + badgeV5_(r.trangThai) + '</div>' +
+      '<div class="line">' + escapeHtml(r.tenLoai) + ': <b>' + escapeHtml(r.giaTriMoi || '(xem lý do)') + '</b></div>' +
+      '<div class="line muted">Trước đó: ' + escapeHtml(r.giaTriCu) + '</div>' +
+      '<div class="line muted">Lý do: ' + escapeHtml(r.lyDo) + ' · Người tạo: ' + escapeHtml(r.nguoiTao) + ' · ' + escapeHtml(r.thoiGianTao) + '</div>' +
+      (r.trangThai === 'ChoDuyet'
+        ? '<div class="btn-row"><button class="btn green small" style="width:auto;padding:6px 12px" onclick="pmDuyet(\'phieuB\',\'' + r.phieuID + '\');setTimeout(loadPhieuDC,600)">✅ Duyệt (chủ xưởng)</button>' +
+          '<button class="btn red small" style="width:auto;padding:6px 12px" onclick="pmTuChoi(\'phieuB\',\'' + r.phieuID + '\');setTimeout(loadPhieuDC,600)">❌ Từ chối</button></div>'
+        : '') +
+      (r.trangThai === 'HieuLuc'
+        ? '<button class="btn gray small" onclick="voHieuPhieuDC(\'' + r.phieuID + '\')">Vô hiệu phiếu (chủ xưởng)</button>'
+        : '') +
+      '</div>';
+  });
+  $('phieuDCBox').innerHTML = res.data.length ? html : html + '<div class="alert blue">Chưa có phiếu nào.</div>';
+}
+
+async function taoPhieuDC() {
+  const res = await api('createAdjustment', {
+    userID: user.userID, targetUserID: $('pdcNV').value, ngay: $('pdcNgay').value,
+    loai: $('pdcLoai').value, giaTriMoi: $('pdcGiaTri').value.trim(), lyDo: $('pdcLyDo').value.trim()
+  });
+  res.success ? toast(res.message) : alert(res.message);
+  if (res.success) { $('pdcGiaTri').value = ''; $('pdcLyDo').value = ''; loadPhieuDC(); }
+}
+
+async function voHieuPhieuDC(id) {
+  const lyDo = prompt('Lý do vô hiệu phiếu (bắt buộc):\nLưu ý: bảng công KHÔNG tự hoàn tác - cần thì tạo phiếu ngược.');
+  if (lyDo === null) return;
+  if (!lyDo.trim()) { toast('Phải nhập lý do.'); return; }
+  const res = await api('voidAdjustment', { userID: user.userID, phieuID: id, lyDo: lyDo.trim() });
+  res.success ? toast(res.message) : alert(res.message);
+  loadPhieuDC();
+}
+
+/* ---------- V5 P3: QUYẾT ĐỊNH NHÂN SỰ + LỊCH SỬ LƯƠNG ---------- */
+const QD_LIEN_QUAN_LUONG = ['ChinhThuc', 'TangLuong', 'GiamLuong', 'DieuChinhPhuCap'];
+
+function qdDoiLoai_() {
+  const lienQuanLuong = QD_LIEN_QUAN_LUONG.indexOf($('qdLoai').value) >= 0;
+  $('qdLuongBox').classList.toggle('hidden', !lienQuanLuong);
+  $('qdNoiDungBox').classList.toggle('hidden', lienQuanLuong);
+}
+
+async function openQuyetDinh() {
+  if (!options) await loadOptions();
+  dsNhanVienSelect_('qdNV');
+  dsNhanVienSelect_('lslNV');
+  $('qdHieuLuc').value = todayStr();
+  qdDoiLoai_();
+  showScreen('scr-quyetdinh', 'Quyết định nhân sự');
+  loadQuyetDinh();
+}
+
+async function loadQuyetDinh() {
+  $('quyetDinhBox').innerHTML = '<div class="muted" style="margin-top:12px">Đang tải...</div>';
+  const res = await api('getDecisions', { userID: user.userID });
+  if (!res.success) { $('quyetDinhBox').innerHTML = '<div class="alert red">' + escapeHtml(res.message) + '</div>'; return; }
+  let html = '<div class="section-title">Quyết định gần đây (' + res.data.length + ')</div>';
+  res.data.slice(0, 30).forEach(r => {
+    html += '<div class="card">' +
+      '<div class="line"><b>' + escapeHtml(r.tenLoai) + '</b> - ' + escapeHtml(r.hoTen) + ' ' + badgeV5_(r.trangThai) + '</div>' +
+      '<div class="line muted">Hiệu lực từ ' + fmtDate(r.hieuLucTu) + ' · Lý do: ' + escapeHtml(r.lyDo) + '</div>' +
+      (r.noiDungCu ? '<div class="line muted">Trước: ' + escapeHtml(r.noiDungCu) + '</div>' : '') +
+      '<div class="line muted">Đề xuất: ' + escapeHtml(r.nguoiDeXuat) + (r.nguoiDuyet ? ' · Duyệt: ' + escapeHtml(r.nguoiDuyet) + ' (' + escapeHtml(r.thoiGianDuyet) + ')' : '') + '</div>' +
+      (r.trangThai === 'ChoDuyet'
+        ? '<div class="btn-row"><button class="btn green small" style="width:auto;padding:6px 12px" onclick="pmDuyet(\'quyetdinh\',\'' + r.qdID + '\');setTimeout(loadQuyetDinh,600)">✅ Duyệt (chủ xưởng)</button>' +
+          '<button class="btn red small" style="width:auto;padding:6px 12px" onclick="pmTuChoi(\'quyetdinh\',\'' + r.qdID + '\');setTimeout(loadQuyetDinh,600)">❌ Từ chối</button></div>'
+        : '') +
+      '</div>';
+  });
+  $('quyetDinhBox').innerHTML = res.data.length ? html : html + '<div class="alert blue">Chưa có quyết định nào.</div>';
+}
+
+async function taoQD() {
+  const res = await api('createDecision', {
+    userID: user.userID, targetUserID: $('qdNV').value, loai: $('qdLoai').value,
+    hieuLucTu: $('qdHieuLuc').value, lyDo: $('qdLyDo').value.trim(),
+    luongChinhThuc: $('qdLuongCT').value, tyLe: $('qdTyLe').value,
+    luongTheoGio: $('qdLuongGio').value, phuCapCoDinh: $('qdPhuCap').value,
+    noiDungMoi: $('qdNoiDung').value.trim()
+  });
+  res.success ? toast(res.message) : alert(res.message);
+  if (res.success) { $('qdLyDo').value = ''; loadQuyetDinh(); }
+}
+
+async function xemLichSuLuong() {
+  $('lichSuLuongBox').innerHTML = '<div class="muted">Đang tải...</div>';
+  const res = await api('getSalaryHistory', { userID: user.userID, targetUserID: $('lslNV').value });
+  if (!res.success) { $('lichSuLuongBox').innerHTML = '<div class="alert red">' + escapeHtml(res.message) + '</div>'; return; }
+  let html = '';
+  res.data.forEach(r => {
+    html += '<div class="line" style="border-left:3px solid #cfd8dc;padding-left:10px;margin-top:8px">' +
+      '<b>' + fmtMoney(r.luongApDung) + ' đ/tháng</b>' + (r.tyLe < 100 ? ' (thử việc ' + r.tyLe + '% của ' + fmtMoney(r.luongChinhThuc) + ')' : '') +
+      (r.luongTheoGio ? ' · ' + fmtMoney(r.luongTheoGio) + ' đ/giờ' : '') +
+      (r.phuCapCoDinh ? ' · PC ' + fmtMoney(r.phuCapCoDinh) : '') + '<br>' +
+      '<span class="muted">Từ ' + fmtDate(r.hieuLucTu) + (r.hieuLucDen ? ' đến ' + fmtDate(r.hieuLucDen) : ' (hiện hành)') +
+      ' · ' + escapeHtml(r.lyDo || '') + '</span></div>';
+  });
+  $('lichSuLuongBox').innerHTML = html || '<div class="alert blue">Nhân viên này chưa có bản ghi lương (đang dùng lương trong hồ sơ).</div>';
+}
+
+/* ---------- V5 P4: CHỐT CÔNG & LƯƠNG ---------- */
+async function openChotKy() {
+  fillThangNam('ckThang', 'ckNam');
+  showScreen('scr-chotky', 'Chốt công & lương');
+  loadChotKy();
+}
+
+async function loadChotKy() {
+  $('ckTrangThai').innerHTML = '<div class="muted">Đang tải...</div>';
+  const res = await api('getLockStatus', { userID: user.userID, month: $('ckThang').value, year: $('ckNam').value });
+  if (!res.success) { $('ckTrangThai').innerHTML = '<div class="alert red">' + escapeHtml(res.message) + '</div>'; return; }
+  const d = res.data;
+  const dong = (ten, k) => k
+    ? '<div class="alert orange">🔒 ' + ten + ': ĐÃ CHỐT lần ' + k.lanChot + ' bởi ' + escapeHtml(k.nguoiChot) + ' lúc ' + escapeHtml(k.thoiGianChot) + '</div>'
+    : '<div class="alert green">🔓 ' + ten + ': chưa chốt</div>';
+  $('ckTrangThai').innerHTML = dong('CÔNG tháng ' + d.month + '/' + d.year, d.cong) + dong('LƯƠNG tháng ' + d.month + '/' + d.year, d.luong);
+}
+
+async function chotCong() {
+  const t = $('ckThang').value, n = $('ckNam').value;
+  if (!confirm('CHỐT CÔNG tháng ' + t + '/' + n + '?\nSau khi chốt: mọi sửa công/duyệt nghỉ/OT của tháng này bị khóa (chủ xưởng mở được).')) return;
+  const res = await api('lockPeriod', { userID: user.userID, loai: 'CONG', thang: t, nam: n });
+  res.success ? toast(res.message) : alert(res.message);
+  loadChotKy();
+}
+
+async function chotLuong() {
+  const t = $('ckThang').value, n = $('ckNam').value;
+  if (!confirm('CHỐT LƯƠNG tháng ' + t + '/' + n + '?\nHệ thống sẽ tính bảng lương và LƯU SNAPSHOT - nhân viên xem phiếu + ký nhận theo bản này.')) return;
+  const res = await api('lockPayroll', { userID: user.userID, thang: t, nam: n });
+  res.success ? toast(res.message) : alert(res.message);
+  loadChotKy();
+}
+
+async function moKhoaKy(loai) {
+  const t = $('ckThang').value, n = $('ckNam').value;
+  const lyDo = prompt('Lý do mở khóa ' + loai + ' tháng ' + t + '/' + n + ' (bắt buộc, lưu lịch sử):');
+  if (lyDo === null) return;
+  if (!lyDo.trim()) { toast('Phải nhập lý do.'); return; }
+  const res = await api('unlockPeriod', { userID: user.userID, loai: loai, thang: t, nam: n, lyDo: lyDo.trim() });
+  res.success ? toast(res.message) : alert(res.message);
+  loadChotKy();
+}
+
+function dongLuongHtml_(r) {
+  return '<div class="card">' +
+    '<div class="line"><b>' + escapeHtml(r.hoTen) + '</b> · ' + escapeHtml(r.phongBan) +
+    (r.daKyNhan !== undefined ? (r.daKyNhan ? ' <span class="badge da-duyet">Đã ký</span>' : ' <span class="badge cho-duyet">Chưa ký</span>') : '') + '</div>' +
+    '<div class="line">Công: <b>' + r.tongCong + '</b> · Giờ: ' + r.tongGioLam + 'h · OT: ' + r.tongGioTangCa + 'h' +
+    (r.tienPhepKhongNghi ? ' · Phép không nghỉ: ' + fmtMoney(r.tienPhepKhongNghi) : '') + '</div>' +
+    ((r.giaiDoan || []).length > 1 ? '<div class="line muted">' + r.giaiDoan.map(g => escapeHtml(g.moTa) + ' = ' + fmtMoney(g.tien) + ' đ').join('<br>') + '</div>' : '') +
+    '<div class="line">Thưởng ' + fmtMoney(r.thuong) + ' · Phạt ' + fmtMoney(r.phat) + ' · Phụ cấp ' + fmtMoney((r.phuCap || 0) + (r.phuCapCoDinh || 0)) +
+    ' · Khấu trừ ' + fmtMoney(r.khauTru) + ' · Tạm ứng ' + fmtMoney(r.tamUngDaChi) + '</div>' +
+    '<div class="line">💵 THỰC NHẬN: <b>' + fmtMoney(r.thucNhan) + ' đ</b></div>' +
+    (r.canhBao ? '<div class="alert orange">' + escapeHtml(r.canhBao) + '</div>' : '') +
+    '</div>';
+}
+
+async function xemBangLuongV5() {
+  $('chotKyBox').innerHTML = '<div class="muted" style="margin-top:12px">Đang tính bảng lương...</div>';
+  const res = await api('getPayrollV5', { userID: user.userID, month: $('ckThang').value, year: $('ckNam').value });
+  if (!res.success) { $('chotKyBox').innerHTML = '<div class="alert red">' + escapeHtml(res.message) + '</div>'; return; }
+  let html = '<div class="section-title">Bảng lương V5 (TRƯỚC chốt) - ' + res.data.bangLuong.length + ' nhân viên</div>';
+  res.data.bangLuong.forEach(r => { html += dongLuongHtml_(r); });
+  $('chotKyBox').innerHTML = res.data.bangLuong.length ? html : html + '<div class="alert blue">Không có nhân viên nào.</div>';
+}
+
+async function xemBangLuongDaChot() {
+  $('chotKyBox').innerHTML = '<div class="muted" style="margin-top:12px">Đang tải bản chốt...</div>';
+  const res = await api('getLockedPayroll', { userID: user.userID, month: $('ckThang').value, year: $('ckNam').value });
+  if (!res.success) { $('chotKyBox').innerHTML = '<div class="alert red">' + escapeHtml(res.message) + '</div>'; return; }
+  let html = '<div class="section-title">Bảng lương ĐÃ CHỐT (bản hiệu lực) - ' + res.data.bangLuong.length + ' nhân viên</div>';
+  res.data.bangLuong.forEach(r => { html += dongLuongHtml_(r); });
+  $('chotKyBox').innerHTML = res.data.bangLuong.length ? html : html + '<div class="alert blue">Tháng này chưa chốt lương.</div>';
+}
+
+async function copyTSVLuong() {
+  const res = await api('exportPayrollTSV', { userID: user.userID, month: $('ckThang').value, year: $('ckNam').value });
+  if (!res.success) { alert(res.message); return; }
+  copyText(res.data.tsv, 'bảng lương (dán vào Excel/Google Sheet)');
+}
+
+/* ---------- V5 P4: DASHBOARD CHỦ XƯỞNG ---------- */
+async function openOwner() {
+  showScreen('scr-owner', 'Dashboard chủ xưởng');
+  loadOwner();
+}
+
+async function loadOwner() {
+  $('ownerBox').innerHTML = '<div class="muted" style="margin-top:12px">Đang tải...</div>';
+  const res = await api('getOwnerDashboard', { userID: user.userID });
+  if (!res.success) { $('ownerBox').innerHTML = '<div class="alert red">' + escapeHtml(res.message) + '</div>'; return; }
+  const d = res.data;
+  const khoi = (icon, ten, giaTri, ds) =>
+    '<div class="card"><div class="line" style="display:flex;justify-content:space-between"><span>' + icon + ' ' + ten + '</span><b style="font-size:1.2em">' + giaTri + '</b></div>' +
+    (ds && ds.length ? '<div class="line muted">' + ds.map(escapeHtml).join('<br>') + '</div>' : '') + '</div>';
+  let html = '<div class="section-title">Hôm nay ' + fmtDate(d.ngay) + '</div>' +
+    khoi('🏭', 'Đi làm', d.diLam + '/' + d.tongActive, null) +
+    khoi('🛌', 'Nghỉ hôm nay', d.nghi.length, d.nghi) +
+    khoi('⏰', 'Đi trễ', d.diTre.length, d.diTre) +
+    khoi('🚪', 'Chưa checkout', d.chuaRa.length, d.chuaRa) +
+    khoi('❓', 'Chưa chấm vào', d.chuaVao.length, d.chuaVao);
+  if (d.kpi) {
+    html += '<div class="card"><h3>📊 KPI bộ phận</h3>' + d.kpi.map(k =>
+      '<div class="line"><b>' + escapeHtml(k.phongBan) + '</b>: ' + k.thucTe + '/' + k.chiTieu + ' bill</div>').join('') + '</div>';
+  }
+  html += khoi('📌', 'Việc PM chưa xử lý', d.viecPMChuaXuLy, null) +
+    khoi('✅', 'PM đã chốt ngày hôm nay', d.pmDaChotNgay ? 'Rồi' : 'Chưa', null);
+  if (d.nhacNho > 0) html += khoi('💰', 'Đến kỳ xét tăng lương', d.nhacNho + ' người', null);
+  html += '<button class="btn small" onclick="copyOwnerZalo()">📋 Copy tổng quan (Zalo)</button>';
+  $('ownerBox').innerHTML = html;
+  window._ownerData = d;
+}
+
+function copyOwnerZalo() {
+  const d = window._ownerData;
+  if (!d) return;
+  let t = '🏭 TỔNG QUAN XƯỞNG ' + fmtDate(d.ngay) + '\n' +
+    '- Đi làm: ' + d.diLam + '/' + d.tongActive + '\n' +
+    '- Nghỉ: ' + d.nghi.length + (d.nghi.length ? ' (' + d.nghi.join('; ') + ')' : '') + '\n' +
+    '- Đi trễ: ' + d.diTre.length + '\n' +
+    '- Chưa checkout: ' + d.chuaRa.length + '\n' +
+    '- Việc PM chưa xử lý: ' + d.viecPMChuaXuLy + '\n' +
+    '- PM chốt ngày: ' + (d.pmDaChotNgay ? 'Rồi ✅' : 'Chưa ❌');
+  if (d.kpi && d.kpi.length) t += '\n- KPI: ' + d.kpi.map(k => k.phongBan + ' ' + k.thucTe + '/' + k.chiTieu).join(' · ');
+  copyText(t, 'tổng quan xưởng');
 }
 
 /* ================== KHỞI ĐỘNG ================== */
