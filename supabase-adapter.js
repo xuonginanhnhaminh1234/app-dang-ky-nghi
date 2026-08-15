@@ -77,8 +77,9 @@
     clearSession(); oldLogout();
   };
 
-  // Modules V5 that have not been migrated yet remain hidden on the Supabase pilot.
-  const LEGACY_TEST_HIDE=['mnThongBao','mnPMDash','mnDieuChinh','mnQuyetDinh','mnChotKy','mnOwner','mnPending','mnBirthday','mnTBQL'];
+  // Modules not migrated or intentionally disabled on the Supabase pilot.
+  // Overtime is intentionally hidden: official OT comes only from actual attendance punches.
+  const LEGACY_TEST_HIDE=['mnThongBao','mnPMDash','mnDieuChinh','mnQuyetDinh','mnChotKy','mnOwner','mnPending','mnBirthday','mnTBQL','mnTangCa'];
   const oldRenderHome=renderHome;
   renderHome=function(){
     oldRenderHome();
@@ -86,7 +87,7 @@
     const info=document.getElementById('homeInfo');
     if(info&&!document.getElementById('supabasePilotBadge')){
       const badge=document.createElement('div');badge.id='supabasePilotBadge';badge.className='alert blue';badge.style.marginTop='10px';
-      badge.textContent='SUPABASE TEST · Chấm công 4 mốc · Production cũ chưa bị thay đổi';info.parentNode.appendChild(badge);
+      badge.textContent='SUPABASE TEST · Chấm công 4 mốc · OT tự tính từ giờ chấm ra · Production cũ chưa bị thay đổi';info.parentNode.appendChild(badge);
     }
   };
 
@@ -101,7 +102,10 @@
       '<div class="line">📅 <b>'+fmtDate(d.ngay)+'</b> · Ca: <b>'+escapeHtml(d.caLam||'FULL')+'</b></div>'+ 
       '<div class="alert blue">Mốc tiếp theo: <b>'+escapeHtml(d.nextExpectedLabel||'Đã đủ mốc')+'</b></div>';
     ['VAO_SANG','RA_SANG','VAO_CHIEU','RA_CHIEU'].forEach(k=>{html+='<div class="line" style="display:flex;justify-content:space-between;border-bottom:1px solid #eee;padding:8px 0"><span>'+labels[k]+'</span><b>'+(map[k]?.gio||'Chưa chấm')+'</b></div>'});
-    if(d.chamCong)html+='<div class="line" style="margin-top:8px">Giờ làm hiện có: <b>'+Number(d.chamCong.soGioLam||0).toFixed(2)+'h</b>'+(d.chamCong.diTre?' · <span class="badge tu-choi">Trễ '+d.chamCong.soPhutTre+'p</span>':'')+(d.chamCong.veSom?' · <span class="badge cho-duyet">Sớm '+d.chamCong.soPhutVeSom+'p</span>':'')+'</div>';
+    if(d.chamCong){
+      const ot=Number(d.chamCong.soGioTangCa||0);
+      html+='<div class="line" style="margin-top:8px">Giờ làm hiện có: <b>'+Number(d.chamCong.soGioLam||0).toFixed(2)+'h</b>'+(ot>0?' · OT tự tính: <b>'+ot.toFixed(2)+'h</b>':'')+(d.chamCong.diTre?' · <span class="badge tu-choi">Trễ '+d.chamCong.soPhutTre+'p</span>':'')+(d.chamCong.veSom?' · <span class="badge cho-duyet">Sớm '+d.chamCong.soPhutVeSom+'p</span>':'')+'</div>';
+    }
     gpsCC=d.gps||null;if(d.gps?.daCauHinhToaDo)html+='<div class="line muted">📍 GPS '+d.gps.banKinhMet+'m quanh '+escapeHtml(d.gps.tenDiaDiem||'xưởng')+'</div>';
     if(box)box.innerHTML=html;
   };
