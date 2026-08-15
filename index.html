@@ -3,6 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<link rel="icon" href="data:image/svg+xml,&lt;svg xmlns=&%23x27;http://www.w3.org/2000/svg&%23x27; viewBox=&%23x27;0 0 64 64&%23x27;&gt;
+&lt;rect width=&%23x27;64&%23x27; height=&%23x27;64&%23x27; rx=&%23x27;14&%23x27; fill=&%23x27;%231976d2&%23x27;/&gt;
+&lt;path d=&%23x27;M32 10 12 27v24h40V27L32 10Z&%23x27; fill=&%23x27;white&%23x27;/&gt;
+&lt;rect x=&%23x27;20&%23x27; y=&%23x27;30&%23x27; width=&%23x27;24&%23x27; height=&%23x27;15&%23x27; rx=&%23x27;2&%23x27; fill=&%23x27;%231976d2&%23x27;/&gt;
+&lt;circle cx=&%23x27;27&%23x27; cy=&%23x27;35&%23x27; r=&%23x27;3&%23x27; fill=&%23x27;%23f4a62a&%23x27;/&gt;
+&lt;path d=&%23x27;m22 43 7-6 5 4 4-3 5 5H22Z&%23x27; fill=&%23x27;%237cb342&%23x27;/&gt;
+&lt;/svg&gt;">
 <title>Nhân Sự Nhà Mình - Xưởng in ảnh</title>
 <style>
   /* ============ RESET & NỀN ============ */
@@ -140,10 +147,43 @@
   .muted { color: var(--xam); font-size: 13px; }
   .hidden { display: none !important; }
   .pin-input { text-align: center; font-size: 28px; letter-spacing: 12px; }
-  .logo { text-align: center; margin: 40px 0 10px; }
-  .logo .ic { font-size: 52px; }
-  .logo h1 { font-size: 22px; color: var(--xanh-dam); margin-top: 8px; }
+  .logo { text-align: center; margin: 24px 0 10px; }
+  .logo .brand-logo-wrap {
+    width: 178px;
+    margin: 0 auto 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .logo .brand-logo-svg {
+    width: 100%;
+    height: auto;
+    display: block;
+    filter: drop-shadow(0 2px 5px rgba(13,71,161,.10));
+  }
+  .logo h1 { font-size: 22px; color: var(--xanh-dam); margin-top: 2px; }
   .logo p { color: var(--xam); font-size: 14px; margin-top: 4px; }
+
+  /* Logo nhỏ trên thanh tiêu đề */
+  .topbar .title {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .topbar .title::before {
+    content: "⌂";
+    display: inline-flex;
+    width: 25px;
+    height: 25px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 7px;
+    background: #fff;
+    color: var(--xanh);
+    font-size: 19px;
+    font-weight: 900;
+    line-height: 1;
+  }
   .filter-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
 </style>
 </head>
@@ -159,7 +199,37 @@
 <!-- ================= 1. LOGIN ================= -->
 <div class="screen active" id="scr-login">
   <div class="logo">
-    <div class="ic">🏭</div>
+    <div class="brand-logo-wrap">
+      <svg class="brand-logo-svg" viewBox="0 0 420 235" role="img" aria-label="Logo Xưởng In Ảnh Nhà Mình" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="nmBlue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0d47a1"/>
+      <stop offset="1" stop-color="#1976d2"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Biểu tượng ngôi nhà / khung ảnh -->
+  <g transform="translate(142 8)">
+    <path d="M68 10 8 59v72c0 8 6 14 14 14h92c8 0 14-6 14-14V59L68 10Z"
+          fill="url(#nmBlue)"/>
+    <path d="M27 69h82v55H27z" fill="#fff" rx="5"/>
+    <circle cx="52" cy="88" r="9" fill="#f4a62a"/>
+    <path d="m34 116 21-20 17 16 13-12 23 22H34Z" fill="#7cb342"/>
+    <path d="M1 61 68 4l67 57" fill="none" stroke="#0d47a1" stroke-width="10"
+          stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <text x="210" y="169" text-anchor="middle"
+        font-family="Arial, Helvetica, sans-serif"
+        font-size="22" font-weight="700" letter-spacing="5"
+        fill="#546e7a">XƯỞNG IN ẢNH</text>
+
+  <text x="210" y="210" text-anchor="middle"
+        font-family="Arial, Helvetica, sans-serif"
+        font-size="47" font-weight="900" letter-spacing="1"
+        fill="#0d47a1">NHÀ MÌNH</text>
+</svg>
+    </div>
     <h1>Nhân Sự Nhà Mình</h1>
     <p>Xưởng in ảnh - Nhập mã PIN để vào</p>
   </div>
@@ -4008,6 +4078,7 @@ function copyOwnerZalo() {
   if (d.kpi && d.kpi.length) t += '\n- KPI: ' + d.kpi.map(k => k.phongBan + ' ' + k.thucTe + '/' + k.chiTieu).join(' · ');
   copyText(t, 'tổng quan xưởng');
 }
+
 
 /* ================== KHỞI ĐỘNG ================== */
 (async function init() {
