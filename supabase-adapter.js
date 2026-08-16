@@ -20,7 +20,7 @@
   const REPORT_ACTIONS = new Set(['getLeaveDashboard','getMonthlyLeaveDashboard']);
   const ANNOUNCE_ACTIONS = new Set(['getAnnouncements','markAnnouncementRead','createAnnouncement','deactivateAnnouncement']);
   const V5_ACTIONS = new Set([
-    'getPendingTasks','getBirthdays','getProbationAlerts','getPMDashboard','closePMDay','closeDay',
+    'getPendingTasks','getBirthdays','getProbationAlerts','getPMDashboard','chotNgay','closePMDay','closeDay',
     'getOwnerDashboard','getLockStatus','lockPeriod','lockPayroll','unlockPeriod',
     'getPayrollV5','getLockedPayroll','exportPayrollTSV',
     'getKPIToday','updateKPI','getKPIConfig','updateKPIConfig'
@@ -30,14 +30,27 @@
   function setSession(token){ if(token) localStorage.setItem(SESSION_KEY, token); }
   function clearSession(){ localStorage.removeItem(SESSION_KEY); }
 
+  function addDaysISO(days){
+    const d=new Date();
+    d.setHours(12,0,0,0);
+    d.setDate(d.getDate()+Number(days||0));
+    const p=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(d);
+    const m=Object.fromEntries(p.map(x=>[x.type,x.value]));
+    return m.year+'-'+m.month+'-'+m.day;
+  }
+
   function normalizeRequest(action, data){
     const p={...(data||{})};
     if(action==='updateModuleConfig' && p.enable!==undefined && p.state===undefined) p.state=p.enable;
     if(action==='updateMinimumStaffConfig' && p.soNguoiToiThieu!==undefined && p.nhanSuToiThieu===undefined) p.nhanSuToiThieu=p.soNguoiToiThieu;
+    if(action==='chotNgay' && p.lyDoTon && !p.lyDo) p.lyDo=p.lyDoTon;
     return p;
   }
 
   function normalizeResponse(action, out){
+    if(action==='chotNgay' && !out?.success && out?.message && /^Còn\s+\d+\s+việc/.test(out.message)){
+      out.data={...(out.data||{}),needLyDo:true};
+    }
     if(!out?.success) return out;
     if((action==='getMyLeaves'||action==='getAllLeaves') && Array.isArray(out.data)){
       out.data=out.data.map(x=>({...x,thoiGianDangKy:x.thoiGianDangKy||x.ngayTao||'',taoThayNhanVien:x.taoThayNhanVien===true}));
@@ -52,10 +65,29 @@
         return {...x,trangThai:st,duocDung:st==='TRUE'||(st==='TEST'&&isManager)};
       });
     }
+    if(action==='getBirthdays' && out.data){
+      out.data.homNay=Array.isArray(out.data.homNay)?out.data.homNay:[];
+      out.data.sapToi=(Array.isArray(out.data.sapToi)?out.data.sapToi:[])
+        .filter(x=>Number(x.soNgayConLai??x.conNgay??999)<=7)
+        .map(x=>({...x,conNgay:Number(x.conNgay??x.soNgayConLai??0),ngayMung:x.ngayMung||addDaysISO(Number(x.soNgayConLai||0))}));
+    }
+    if(action==='getProbationAlerts' && out.data){
+      const src=[...(out.data.sapHetHan||[]),...(out.data.hetHan||[])];
+      const uniq=[];const seen=new Set();
+      src.forEach(x=>{const k=(x.userID||'')+'|'+(x.ngayKetThucThuViec||x.ngayKetThuc||'');if(!seen.has(k)){seen.add(k);uniq.push(x)}});
+      const conv=x=>({...x,ngayKetThuc:x.ngayKetThuc||x.ngayKetThucThuViec||''});
+      out.data={
+        quaHan:uniq.filter(x=>Number(x.soNgayConLai)<0).map(conv),
+        homNay:uniq.filter(x=>Number(x.soNgayConLai)===0).map(conv),
+        con3Ngay:uniq.filter(x=>Number(x.soNgayConLai)>=1&&Number(x.soNgayConLai)<=3).map(conv),
+        con7Ngay:uniq.filter(x=>Number(x.soNgayConLai)>=4&&Number(x.soNgayConLai)<=7).map(conv)
+      };
+    }
     return out;
   }
 
   async function callSupabase(action, data = {}, silent = false){
+    const wireAction = action==='chotNgay' ? 'closeDay' : action;
     const endpoint = REPORT_ACTIONS.has(action)
       ? REPORT_API
       : (ANNOUNCE_ACTIONS.has(action)
@@ -70,7 +102,7 @@
     }
     try{
       if(!silent && typeof showLoading === 'function') showLoading(true);
-      const res = await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,data:payload})});
+      const res = await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:wireAction,data:payload})});
       let out = await res.json();
       if((action==='login'||action==='loginFull') && out?.success && out?.data?.sessionToken) setSession(out.data.sessionToken);
       if(action==='logout'||out?.code==='SESSION_EXPIRED'||out?.code==='NO_SESSION') clearSession();
@@ -92,7 +124,7 @@
     clearSession(); oldLogout();
   };
 
-  // Những phần V5 chưa port đủ vẫn ẩn. OT thủ công cố ý không dùng.
+  // Chưa port: phiếu sửa công V5 và quyết định nhân sự. OT thủ công cố ý không dùng.
   const LEGACY_TEST_HIDE=['mnDieuChinh','mnQuyetDinh','mnTangCa'];
   const oldRenderHome=renderHome;
   renderHome=function(){
@@ -105,7 +137,6 @@
     }
   };
 
-  // Giữ renderer chấm công Supabase 4 mốc.
   loadChamCong=async function(){
     const box=document.getElementById('ccBox');if(box)box.innerHTML='<div class="muted">Đang tải...</div>';
     const res=await callSupabase('getTodayAttendance',{},false);
