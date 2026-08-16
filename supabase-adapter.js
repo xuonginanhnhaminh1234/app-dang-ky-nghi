@@ -6,7 +6,8 @@
   const EXTRA_API = 'https://jegxhnwjrzcpgsrxnawd.supabase.co/functions/v1/hr-extra-api';
   const REPORT_API = 'https://jegxhnwjrzcpgsrxnawd.supabase.co/functions/v1/hr-report-api';
   const ANNOUNCE_API = 'https://jegxhnwjrzcpgsrxnawd.supabase.co/functions/v1/hr-announcement-api';
-  const V5_API = 'https://jegxhnwjrzcpgsrxnawd.supabase.co/functions/v1/hr-v5-api';
+  const DASH_V5_API = 'https://jegxhnwjrzcpgsrxnawd.supabase.co/functions/v1/hr-dashboard-v5-api';
+  const PAY_V5_API = 'https://jegxhnwjrzcpgsrxnawd.supabase.co/functions/v1/hr-payroll-v5-api';
   const SESSION_KEY = 'nhaminh_hr_session_test';
 
   const EXTRA_ACTIONS = new Set([
@@ -19,11 +20,12 @@
   ]);
   const REPORT_ACTIONS = new Set(['getLeaveDashboard','getMonthlyLeaveDashboard']);
   const ANNOUNCE_ACTIONS = new Set(['getAnnouncements','markAnnouncementRead','createAnnouncement','deactivateAnnouncement']);
-  const V5_ACTIONS = new Set([
+  const DASH_V5_ACTIONS = new Set([
     'getPendingTasks','getBirthdays','getProbationAlerts','getPMDashboard','chotNgay','closePMDay','closeDay',
-    'getOwnerDashboard','getLockStatus','lockPeriod','lockPayroll','unlockPeriod',
-    'getPayrollV5','getLockedPayroll','exportPayrollTSV',
-    'getKPIToday','updateKPI','getKPIConfig','updateKPIConfig'
+    'getOwnerDashboard','getKPIToday','updateKPI','getKPIConfig','updateKPIConfig'
+  ]);
+  const PAY_V5_ACTIONS = new Set([
+    'getLockStatus','lockPeriod','lockPayroll','unlockPeriod','getPayrollV5','getLockedPayroll','exportPayrollTSV'
   ]);
 
   function getSession(){ return localStorage.getItem(SESSION_KEY) || ''; }
@@ -31,12 +33,9 @@
   function clearSession(){ localStorage.removeItem(SESSION_KEY); }
 
   function addDaysISO(days){
-    const d=new Date();
-    d.setHours(12,0,0,0);
-    d.setDate(d.getDate()+Number(days||0));
+    const d=new Date(); d.setHours(12,0,0,0); d.setDate(d.getDate()+Number(days||0));
     const p=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(d);
-    const m=Object.fromEntries(p.map(x=>[x.type,x.value]));
-    return m.year+'-'+m.month+'-'+m.day;
+    const m=Object.fromEntries(p.map(x=>[x.type,x.value])); return m.year+'-'+m.month+'-'+m.day;
   }
 
   function normalizeRequest(action, data){
@@ -68,58 +67,42 @@
     if(action==='getBirthdays' && out.data){
       out.data.homNay=Array.isArray(out.data.homNay)?out.data.homNay:[];
       out.data.sapToi=(Array.isArray(out.data.sapToi)?out.data.sapToi:[])
-        .filter(x=>Number(x.soNgayConLai??x.conNgay??999)<=7)
+        .filter(x=>Number(x.conNgay??x.soNgayConLai??999)<=7)
         .map(x=>({...x,conNgay:Number(x.conNgay??x.soNgayConLai??0),ngayMung:x.ngayMung||addDaysISO(Number(x.soNgayConLai||0))}));
-    }
-    if(action==='getProbationAlerts' && out.data){
-      const src=[...(out.data.sapHetHan||[]),...(out.data.hetHan||[])];
-      const uniq=[];const seen=new Set();
-      src.forEach(x=>{const k=(x.userID||'')+'|'+(x.ngayKetThucThuViec||x.ngayKetThuc||'');if(!seen.has(k)){seen.add(k);uniq.push(x)}});
-      const conv=x=>({...x,ngayKetThuc:x.ngayKetThuc||x.ngayKetThucThuViec||''});
-      out.data={
-        quaHan:uniq.filter(x=>Number(x.soNgayConLai)<0).map(conv),
-        homNay:uniq.filter(x=>Number(x.soNgayConLai)===0).map(conv),
-        con3Ngay:uniq.filter(x=>Number(x.soNgayConLai)>=1&&Number(x.soNgayConLai)<=3).map(conv),
-        con7Ngay:uniq.filter(x=>Number(x.soNgayConLai)>=4&&Number(x.soNgayConLai)<=7).map(conv)
-      };
     }
     return out;
   }
 
   async function callSupabase(action, data = {}, silent = false){
-    const wireAction = action==='chotNgay' ? 'closeDay' : action;
-    const endpoint = REPORT_ACTIONS.has(action)
-      ? REPORT_API
-      : (ANNOUNCE_ACTIONS.has(action)
-          ? ANNOUNCE_API
-          : (V5_ACTIONS.has(action)
-              ? V5_API
-              : (EXTRA_ACTIONS.has(action) ? EXTRA_API : CORE_API)));
-    const payload = normalizeRequest(action,data);
-    if(action !== 'login' && action !== 'loginFull' && action !== 'health'){
-      const token = getSession();
-      if(token) payload.sessionToken = token;
+    const endpoint = REPORT_ACTIONS.has(action) ? REPORT_API
+      : ANNOUNCE_ACTIONS.has(action) ? ANNOUNCE_API
+      : DASH_V5_ACTIONS.has(action) ? DASH_V5_API
+      : PAY_V5_ACTIONS.has(action) ? PAY_V5_API
+      : EXTRA_ACTIONS.has(action) ? EXTRA_API
+      : CORE_API;
+    const payload=normalizeRequest(action,data);
+    if(action!=='login'&&action!=='loginFull'&&action!=='health'){
+      const token=getSession(); if(token) payload.sessionToken=token;
     }
     try{
-      if(!silent && typeof showLoading === 'function') showLoading(true);
-      const res = await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:wireAction,data:payload})});
-      let out = await res.json();
-      if((action==='login'||action==='loginFull') && out?.success && out?.data?.sessionToken) setSession(out.data.sessionToken);
+      if(!silent&&typeof showLoading==='function') showLoading(true);
+      const res=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,data:payload})});
+      let out=await res.json();
+      if((action==='login'||action==='loginFull')&&out?.success&&out?.data?.sessionToken) setSession(out.data.sessionToken);
       if(action==='logout'||out?.code==='SESSION_EXPIRED'||out?.code==='NO_SESSION') clearSession();
-      out=normalizeResponse(action,out);
-      return out;
+      return normalizeResponse(action,out);
     }catch(err){
       return {success:false,message:'Không kết nối được Supabase HR. Kiểm tra mạng rồi thử lại.'};
     }finally{
-      if(!silent && typeof showLoading === 'function') showLoading(false);
+      if(!silent&&typeof showLoading==='function') showLoading(false);
     }
   }
 
-  api = (action,data) => callSupabase(action,data,false);
-  if(typeof apiSilent !== 'undefined') apiSilent = (action,data) => callSupabase(action,data,true);
+  api=(action,data)=>callSupabase(action,data,false);
+  if(typeof apiSilent!=='undefined') apiSilent=(action,data)=>callSupabase(action,data,true);
 
-  const oldLogout = logout;
-  logout = async function(){
+  const oldLogout=logout;
+  logout=async function(){
     try{const token=getSession();if(token)await callSupabase('logout',{sessionToken:token},true)}catch(_){ }
     clearSession(); oldLogout();
   };
@@ -155,5 +138,5 @@
     if(box)box.innerHTML=html;
   };
 
-  console.log('[NHAMINH HR] Supabase adapter loaded · V5 manager modules enabled');
+  console.log('[NHAMINH HR] Supabase adapter loaded · V5 dashboards + payroll');
 })();
