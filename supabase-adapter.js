@@ -5,6 +5,7 @@
   const CORE_API = 'https://jegxhnwjrzcpgsrxnawd.supabase.co/functions/v1/hr-api';
   const EXTRA_API = 'https://jegxhnwjrzcpgsrxnawd.supabase.co/functions/v1/hr-extra-api';
   const REPORT_API = 'https://jegxhnwjrzcpgsrxnawd.supabase.co/functions/v1/hr-report-api';
+  const ANNOUNCE_API = 'https://jegxhnwjrzcpgsrxnawd.supabase.co/functions/v1/hr-announcement-api';
   const SESSION_KEY = 'nhaminh_hr_session_test';
 
   const EXTRA_ACTIONS = new Set([
@@ -16,6 +17,7 @@
     'lockDate','unlockDate','getLockedDates','getModuleConfig','updateModuleConfig'
   ]);
   const REPORT_ACTIONS = new Set(['getLeaveDashboard','getMonthlyLeaveDashboard']);
+  const ANNOUNCE_ACTIONS = new Set(['getAnnouncements','markAnnouncementRead','createAnnouncement','deactivateAnnouncement']);
 
   function getSession(){ return localStorage.getItem(SESSION_KEY) || ''; }
   function setSession(token){ if(token) localStorage.setItem(SESSION_KEY, token); }
@@ -47,7 +49,11 @@
   }
 
   async function callSupabase(action, data = {}, silent = false){
-    const endpoint = REPORT_ACTIONS.has(action) ? REPORT_API : (EXTRA_ACTIONS.has(action) ? EXTRA_API : CORE_API);
+    const endpoint = REPORT_ACTIONS.has(action)
+      ? REPORT_API
+      : (ANNOUNCE_ACTIONS.has(action)
+          ? ANNOUNCE_API
+          : (EXTRA_ACTIONS.has(action) ? EXTRA_API : CORE_API));
     const payload = normalizeRequest(action,data);
     if(action !== 'login' && action !== 'loginFull' && action !== 'health'){
       const token = getSession();
@@ -78,8 +84,9 @@
   };
 
   // Modules not migrated or intentionally disabled on the Supabase pilot.
+  // Announcement is now migrated to hr-announcement-api.
   // Overtime is intentionally hidden: official OT comes only from actual attendance punches.
-  const LEGACY_TEST_HIDE=['mnThongBao','mnPMDash','mnDieuChinh','mnQuyetDinh','mnChotKy','mnOwner','mnPending','mnBirthday','mnTBQL','mnTangCa'];
+  const LEGACY_TEST_HIDE=['mnPMDash','mnDieuChinh','mnQuyetDinh','mnChotKy','mnOwner','mnPending','mnBirthday','mnTangCa'];
   const oldRenderHome=renderHome;
   renderHome=function(){
     oldRenderHome();
@@ -87,7 +94,7 @@
     const info=document.getElementById('homeInfo');
     if(info&&!document.getElementById('supabasePilotBadge')){
       const badge=document.createElement('div');badge.id='supabasePilotBadge';badge.className='alert blue';badge.style.marginTop='10px';
-      badge.textContent='SUPABASE TEST · Chấm công 4 mốc · OT tự tính từ giờ chấm ra · Production cũ chưa bị thay đổi';info.parentNode.appendChild(badge);
+      badge.textContent='SUPABASE TEST · Chấm công 4 mốc · OT tự tính từ giờ chấm ra';info.parentNode.appendChild(badge);
     }
   };
 
