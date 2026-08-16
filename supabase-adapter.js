@@ -6,6 +6,7 @@
   const EXTRA_API = 'https://jegxhnwjrzcpgsrxnawd.supabase.co/functions/v1/hr-extra-api';
   const REPORT_API = 'https://jegxhnwjrzcpgsrxnawd.supabase.co/functions/v1/hr-report-api';
   const ANNOUNCE_API = 'https://jegxhnwjrzcpgsrxnawd.supabase.co/functions/v1/hr-announcement-api';
+  const V5_API = 'https://jegxhnwjrzcpgsrxnawd.supabase.co/functions/v1/hr-v5-api';
   const SESSION_KEY = 'nhaminh_hr_session_test';
 
   const EXTRA_ACTIONS = new Set([
@@ -18,6 +19,12 @@
   ]);
   const REPORT_ACTIONS = new Set(['getLeaveDashboard','getMonthlyLeaveDashboard']);
   const ANNOUNCE_ACTIONS = new Set(['getAnnouncements','markAnnouncementRead','createAnnouncement','deactivateAnnouncement']);
+  const V5_ACTIONS = new Set([
+    'getPendingTasks','getBirthdays','getProbationAlerts','getPMDashboard','closePMDay','closeDay',
+    'getOwnerDashboard','getLockStatus','lockPeriod','lockPayroll','unlockPeriod',
+    'getPayrollV5','getLockedPayroll','exportPayrollTSV',
+    'getKPIToday','updateKPI','getKPIConfig','updateKPIConfig'
+  ]);
 
   function getSession(){ return localStorage.getItem(SESSION_KEY) || ''; }
   function setSession(token){ if(token) localStorage.setItem(SESSION_KEY, token); }
@@ -53,7 +60,9 @@
       ? REPORT_API
       : (ANNOUNCE_ACTIONS.has(action)
           ? ANNOUNCE_API
-          : (EXTRA_ACTIONS.has(action) ? EXTRA_API : CORE_API));
+          : (V5_ACTIONS.has(action)
+              ? V5_API
+              : (EXTRA_ACTIONS.has(action) ? EXTRA_API : CORE_API)));
     const payload = normalizeRequest(action,data);
     if(action !== 'login' && action !== 'loginFull' && action !== 'health'){
       const token = getSession();
@@ -83,10 +92,8 @@
     clearSession(); oldLogout();
   };
 
-  // Modules not migrated or intentionally disabled on the Supabase pilot.
-  // Announcement is now migrated to hr-announcement-api.
-  // Overtime is intentionally hidden: official OT comes only from actual attendance punches.
-  const LEGACY_TEST_HIDE=['mnPMDash','mnDieuChinh','mnQuyetDinh','mnChotKy','mnOwner','mnPending','mnBirthday','mnTangCa'];
+  // Những phần V5 chưa port đủ vẫn ẩn. OT thủ công cố ý không dùng.
+  const LEGACY_TEST_HIDE=['mnDieuChinh','mnQuyetDinh','mnTangCa'];
   const oldRenderHome=renderHome;
   renderHome=function(){
     oldRenderHome();
@@ -98,7 +105,7 @@
     }
   };
 
-  // Replace only the attendance renderer; existing GPS + check-in/check-out buttons are retained.
+  // Giữ renderer chấm công Supabase 4 mốc.
   loadChamCong=async function(){
     const box=document.getElementById('ccBox');if(box)box.innerHTML='<div class="muted">Đang tải...</div>';
     const res=await callSupabase('getTodayAttendance',{},false);
@@ -117,5 +124,5 @@
     if(box)box.innerHTML=html;
   };
 
-  console.log('[NHAMINH HR] Supabase adapter loaded');
+  console.log('[NHAMINH HR] Supabase adapter loaded · V5 manager modules enabled');
 })();
