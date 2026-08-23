@@ -45,9 +45,11 @@ jobs:
           p=Path('android/app/src/main/AndroidManifest.xml')
           s=p.read_text()
           marker='<application'
-          perms='''<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    '''
+          perms='''<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />\n    '''
           if 'ACCESS_BACKGROUND_LOCATION' not in s:
               s=s.replace(marker,perms+marker,1)
+          elif 'SCHEDULE_EXACT_ALARM' not in s:
+              s=s.replace(marker,'<uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />\n    '+marker,1)
           p.write_text(s)
           PY
 
