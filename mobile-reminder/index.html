@@ -10,9 +10,14 @@
     #status{font-size:12px;padding:7px 10px;background:#eef6ff;color:#174a7e;border-bottom:1px solid #d9e8f5}
     #setup{display:none;padding:12px;background:#fff7e6;border-bottom:1px solid #f2d49b}
     #setup b{display:block;margin-bottom:6px}
-    #setup input,#setup button{font-size:16px;padding:10px;border-radius:8px}
+    #setup input,#setup button,#diag button{font-size:16px;padding:10px;border-radius:8px}
     #setup input{width:140px;border:1px solid #bbb}
-    #setup button{border:0;background:#1976d2;color:white;font-weight:700;margin-left:6px}
+    #setup button,#diag button{border:0;background:#1976d2;color:white;font-weight:700;margin:4px}
+    #diag{padding:10px;border-bottom:1px solid #ddd;background:#fafafa;font-size:13px}
+    #diagGrid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px}
+    .diagItem{padding:7px;background:white;border:1px solid #e5e5e5;border-radius:8px}
+    .diagItem b{display:block;font-size:11px;color:#666;margin-bottom:2px}
+    #diagMsg{font-size:12px;color:#555;margin-top:4px;white-space:pre-line}
     #hr{border:0;flex:1;width:100%;min-height:0}
   </style>
 </head>
@@ -23,6 +28,19 @@
       <b>Bật nhắc chấm công trên điện thoại này</b>
       <input id="pin" type="password" inputmode="numeric" autocomplete="off" placeholder="Nhập PIN" />
       <button id="activate" type="button">Bật nhắc</button>
+    </div>
+    <div id="diag">
+      <div id="diagGrid">
+        <div class="diagItem"><b>GPS</b><span id="dGps">Đang kiểm tra…</span></div>
+        <div class="diagItem"><b>Khoảng cách</b><span id="dDistance">—</span></div>
+        <div class="diagItem"><b>Thông báo</b><span id="dNotif">Đang kiểm tra…</span></div>
+        <div class="diagItem"><b>Exact alarm</b><span id="dExact">Đang kiểm tra…</span></div>
+        <div class="diagItem"><b>Notification đang chờ</b><span id="dPending">0</span></div>
+        <div class="diagItem"><b>Tài khoản nhắc</b><span id="dUser">Chưa bật</span></div>
+      </div>
+      <button id="refreshDiag" type="button">Kiểm tra lại</button>
+      <button id="testNotif" type="button">Rung thử sau 10 giây</button>
+      <div id="diagMsg"></div>
     </div>
     <iframe id="hr" src="https://nhaminh-hr-tt.xuonginanhnhaminh.workers.dev/" allow="geolocation"></iframe>
   </div>
