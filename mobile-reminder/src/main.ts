@@ -11,11 +11,20 @@ const setupEl=document.getElementById('setup')!;
 const pinEl=document.getElementById('pin') as HTMLInputElement;
 const activateEl=document.getElementById('activate') as HTMLButtonElement;
 const frame=document.getElementById('hr') as HTMLIFrameElement;
+const refreshDiagEl=document.getElementById('refreshDiag') as HTMLButtonElement;
+const testNotifEl=document.getElementById('testNotif') as HTMLButtonElement;
+const dGps=document.getElementById('dGps')!;
+const dDistance=document.getElementById('dDistance')!;
+const dNotif=document.getElementById('dNotif')!;
+const dExact=document.getElementById('dExact')!;
+const dPending=document.getElementById('dPending')!;
+const dUser=document.getElementById('dUser')!;
+const diagMsg=document.getElementById('diagMsg')!;
 
 type UserCtx={userID?:string;phongBan?:string;khuVuc?:string;hoTen?:string};
 type SlotKey='VAO_SANG'|'RA_SANG'|'VAO_CHIEU'|'RA_CHIEU';
 const SLOT:Record<SlotKey,number>={VAO_SANG:1,RA_SANG:2,VAO_CHIEU:3,RA_CHIEU:4};
-let ctx:UserCtx|null=null,session='',inside=false;
+let ctx:UserCtx|null=null,session='',inside=false,lastDistance:number|null=null;
 
 function setStatus(s:string){statusEl.textContent=s;}
 function shiftFor(u:UserCtx|null){const pb=(u?.phongBan||'').toLowerCase(),kv=(u?.khuVuc||'').toLowerCase();if(kv==='canin'||pb==='cskh'||pb==='kythuat')return{VAO_SANG:'07:30',RA_SANG:'11:30',VAO_CHIEU:'13:30',RA_CHIEU:'17:30'};return{VAO_SANG:'08:00',RA_SANG:'12:00',VAO_CHIEU:'14:00',RA_CHIEU:'18:00'};}
@@ -32,12 +41,12 @@ async function scheduleWeek(){
   if(!inside||!ctx?.userID)return;await cancelAll();const times=shiftFor(ctx),now=new Date(),notes:any[]=[];
   const label:Record<SlotKey,string>={VAO_SANG:'vào sáng',RA_SANG:'ra trưa',VAO_CHIEU:'vào chiều',RA_CHIEU:'ra chiều'};
   for(let add=0;add<7;add++){const day=new Date(now);day.setDate(day.getDate()+add);day.setHours(0,0,0,0);(Object.keys(SLOT) as SlotKey[]).forEach(slot=>{const at=atTime(day,(times as any)[slot]);if(at<=now)return;notes.push({id:nid(day,slot),title:'⏰ Nhắc chấm công',body:`Bạn đang ở xưởng. Nếu chưa chấm ${label[slot]}, hãy chấm công ngay.`,schedule:{at,allowWhileIdle:true},extra:{nhaminhAttendance:true,slot,userID:ctx!.userID}});});}
-  if(notes.length)await LocalNotifications.schedule({notifications:notes});setStatus(`✅ Đang nhắc · ${ctx.hoTen||ctx.userID}`);
+  if(notes.length)await LocalNotifications.schedule({notifications:notes});setStatus(`✅ Đang nhắc · ${ctx.hoTen||ctx.userID}`);await refreshDiagnostics();
 }
 
 async function syncPunches(){
   if(!session||!ctx?.userID||!inside)return;
-  try{const out=await api('getTodayAttendance',{sessionToken:session});if(!out?.success){if(out?.code==='SESSION_EXPIRED'||out?.code==='NO_SESSION'){session='';ctx=null;setupEl.style.display='block';setStatus('⚠ Phiên nhắc hết hạn · nhập PIN lại');}return;}const done=new Set((out.data?.punches||[]).map((x:any)=>x.loai));for(const s of Object.keys(SLOT) as SlotKey[])if(done.has(s))await cancelSlot(s);}catch(e){console.error(e);}
+  try{const out=await api('getTodayAttendance',{sessionToken:session});if(!out?.success){if(out?.code==='SESSION_EXPIRED'||out?.code==='NO_SESSION'){session='';ctx=null;setupEl.style.display='block';setStatus('⚠ Phiên nhắc hết hạn · nhập PIN lại');}return;}const done=new Set((out.data?.punches||[]).map((x:any)=>x.loai));for(const s of Object.keys(SLOT) as SlotKey[])if(done.has(s))await cancelSlot(s);await refreshDiagnostics();}catch(e){console.error(e);}
 }
 
 async function activate(){
@@ -46,14 +55,43 @@ async function activate(){
   catch(e:any){alert(e.message||String(e));setStatus('⚠ Chưa bật nhắc');}finally{activateEl.disabled=false;}
 }
 
-async function checkInsideNow(){try{const p=await Geolocation.getCurrentPosition({enableHighAccuracy:true,timeout:12000,maximumAge:30000});inside=hav(p.coords.latitude,p.coords.longitude,WORKSHOP.lat,WORKSHOP.lng)<=WORKSHOP.radius;if(inside){await scheduleWeek();await syncPunches();}else{await cancelAll();setStatus('📍 Ngoài khu vực xưởng · không nhắc');}}catch{setStatus('⚠ Hãy cấp quyền Vị trí: Luôn luôn');}}
+async function checkInsideNow(){try{const p=await Geolocation.getCurrentPosition({enableHighAccuracy:true,timeout:12000,maximumAge:30000});lastDistance=hav(p.coords.latitude,p.coords.longitude,WORKSHOP.lat,WORKSHOP.lng);inside=lastDistance<=WORKSHOP.radius;if(inside){await scheduleWeek();await syncPunches();}else{await cancelAll();setStatus('📍 Ngoài khu vực xưởng · không nhắc');await refreshDiagnostics();}}catch{lastDistance=null;setStatus('⚠ Hãy cấp quyền Vị trí: Luôn luôn');await refreshDiagnostics();}}
+
+async function refreshDiagnostics(){
+  try{
+    const np:any=await LocalNotifications.checkPermissions();
+    dNotif.textContent=np.display==='granted'?'Đã cấp':'CHƯA cấp';
+  }catch{dNotif.textContent='Không đọc được';}
+  try{
+    const ex:any=await LocalNotifications.checkExactNotificationSetting();
+    dExact.textContent=ex.exact_alarm==='granted'?'Đã cấp':'CHƯA cấp';
+  }catch{dExact.textContent='Không hỗ trợ/không đọc được';}
+  try{
+    const p=await LocalNotifications.getPending();
+    const ours=p.notifications.filter(n=>n.extra?.nhaminhAttendance===true||n.extra?.nhaminhTest===true);
+    dPending.textContent=String(ours.length);
+  }catch{dPending.textContent='?';}
+  dGps.textContent=lastDistance===null?'Chưa có GPS':(inside?'Trong xưởng':'Ngoài xưởng');
+  dDistance.textContent=lastDistance===null?'—':`${Math.round(lastDistance)} m / ${WORKSHOP.radius} m`;
+  dUser.textContent=ctx?.hoTen||ctx?.userID||'Chưa bật';
+}
+
+async function testNotification(){
+  try{
+    diagMsg.textContent='Đang tạo notification test…';
+    const at=new Date(Date.now()+10000);
+    await LocalNotifications.schedule({notifications:[{id:991001,title:'🔔 Test nhắc chấm công',body:'Nếu bạn thấy thông báo này thì phần rung/thông báo của máy đang hoạt động.',schedule:{at,allowWhileIdle:true},extra:{nhaminhTest:true}}]});
+    diagMsg.textContent='Đã đặt lịch. Khóa màn hình và chờ khoảng 10 giây.';
+    await refreshDiagnostics();
+  }catch(e:any){diagMsg.textContent='Lỗi test: '+(e?.message||String(e));}
+}
 
 async function init(){
-  await loadAuth();setupEl.style.display=session&&ctx?.userID?'none':'block';activateEl.addEventListener('click',activate);
+  await loadAuth();setupEl.style.display=session&&ctx?.userID?'none':'block';activateEl.addEventListener('click',activate);refreshDiagEl.addEventListener('click',async()=>{await checkInsideNow();await refreshDiagnostics();});testNotifEl.addEventListener('click',testNotification);
   await LocalNotifications.requestPermissions();await Geolocation.requestPermissions();
   try{const exact=await LocalNotifications.checkExactNotificationSetting();if(exact.exact_alarm!=='granted')await LocalNotifications.changeExactNotificationSetting();}catch{}
-  try{await BackgroundGeolocation.setupGeofencing({backgroundLocation:true,notifyOnEntry:true,notifyOnExit:true} as any);try{await BackgroundGeolocation.removeGeofence({identifier:'NHAMINH_WORKSHOP'} as any);}catch{}await BackgroundGeolocation.addGeofence({identifier:'NHAMINH_WORKSHOP',latitude:WORKSHOP.lat,longitude:WORKSHOP.lng,radius:WORKSHOP.radius,payload:{kind:'attendance'}} as any);await BackgroundGeolocation.addListener('geofenceTransition' as any,async(ev:any)=>{if(ev.identifier!=='NHAMINH_WORKSHOP')return;const t=String(ev.transition||'').toLowerCase();if(t.includes('enter')){inside=true;await scheduleWeek();await syncPunches();}if(t.includes('exit')){inside=false;await cancelAll();setStatus('📍 Đã rời xưởng · hủy nhắc');}});}catch(e){console.error(e);}
-  await LocalNotifications.addListener('localNotificationActionPerformed',()=>frame.focus());await checkInsideNow();
+  try{await BackgroundGeolocation.setupGeofencing({backgroundLocation:true,notifyOnEntry:true,notifyOnExit:true} as any);try{await BackgroundGeolocation.removeGeofence({identifier:'NHAMINH_WORKSHOP'} as any);}catch{}await BackgroundGeolocation.addGeofence({identifier:'NHAMINH_WORKSHOP',latitude:WORKSHOP.lat,longitude:WORKSHOP.lng,radius:WORKSHOP.radius,payload:{kind:'attendance'}} as any);await BackgroundGeolocation.addListener('geofenceTransition' as any,async(ev:any)=>{if(ev.identifier!=='NHAMINH_WORKSHOP')return;const t=String(ev.transition||'').toLowerCase();if(t.includes('enter')){inside=true;await scheduleWeek();await syncPunches();}if(t.includes('exit')){inside=false;await cancelAll();setStatus('📍 Đã rời xưởng · hủy nhắc');await refreshDiagnostics();}});}catch(e){console.error(e);diagMsg.textContent='Geofence lỗi: '+String(e);}
+  await LocalNotifications.addListener('localNotificationActionPerformed',()=>frame.focus());await checkInsideNow();await refreshDiagnostics();
   setInterval(()=>{if(document.visibilityState==='visible')syncPunches();},5000);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){checkInsideNow();syncPunches();}});
 }
 init();
