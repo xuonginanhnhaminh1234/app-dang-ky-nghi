@@ -1,0 +1,63 @@
+name: Build HR Reminder APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [mobile-geofence-test]
+    paths:
+      - 'mobile-reminder/**'
+      - '.github/workflows/build-mobile-reminder-apk.yml'
+
+jobs:
+  android-debug:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile-reminder
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: mobile-reminder/package.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build web shell
+        run: npm run build
+
+      - name: Add Android platform
+        run: npx cap add android
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Enable Android background permissions
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('android/app/src/main/AndroidManifest.xml')
+          s=p.read_text()
+          marker='<application'
+          perms='''<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    '''
+          if 'ACCESS_BACKGROUND_LOCATION' not in s:
+              s=s.replace(marker,perms+marker,1)
+          p.write_text(s)
+          PY
+
+      - name: Build debug APK
+        run: cd android && chmod +x gradlew && ./gradlew assembleDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nhaminh-hr-reminder-debug-apk
+          path: mobile-reminder/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14
