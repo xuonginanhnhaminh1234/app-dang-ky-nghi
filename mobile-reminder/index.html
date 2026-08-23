@@ -7,13 +7,23 @@
   <style>
     html,body{margin:0;height:100%;background:#fff;font-family:system-ui,-apple-system,sans-serif}
     #app{height:100%;display:flex;flex-direction:column}
-    #status{font-size:12px;padding:6px 10px;background:#eef6ff;color:#174a7e;border-bottom:1px solid #d9e8f5}
+    #status{font-size:12px;padding:7px 10px;background:#eef6ff;color:#174a7e;border-bottom:1px solid #d9e8f5}
+    #setup{display:none;padding:12px;background:#fff7e6;border-bottom:1px solid #f2d49b}
+    #setup b{display:block;margin-bottom:6px}
+    #setup input,#setup button{font-size:16px;padding:10px;border-radius:8px}
+    #setup input{width:140px;border:1px solid #bbb}
+    #setup button{border:0;background:#1976d2;color:white;font-weight:700;margin-left:6px}
     #hr{border:0;flex:1;width:100%;min-height:0}
   </style>
 </head>
 <body>
   <div id="app">
     <div id="status">Đang khởi động nhắc chấm công…</div>
+    <div id="setup">
+      <b>Bật nhắc chấm công trên điện thoại này</b>
+      <input id="pin" type="password" inputmode="numeric" autocomplete="off" placeholder="Nhập PIN" />
+      <button id="activate" type="button">Bật nhắc</button>
+    </div>
     <iframe id="hr" src="https://nhaminh-hr-tt.xuonginanhnhaminh.workers.dev/" allow="geolocation"></iframe>
   </div>
   <script type="module" src="/src/main.ts"></script>
