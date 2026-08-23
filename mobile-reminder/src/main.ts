@@ -1,161 +1,96 @@
 import { Geolocation } from '@capacitor/geolocation';
 import { LocalNotifications } from '@capacitor/local-notifications';
+import { Preferences } from '@capacitor/preferences';
 import { BackgroundGeolocation } from '@capgo/background-geolocation';
 
-const HR_ORIGIN = 'https://nhaminh-hr-tt.xuonginanhnhaminh.workers.dev';
-const WORKSHOP = { lat: 15.1182955, lng: 108.7838916, radius: 200 };
-const REMIND_AFTER_MIN = 5;
-const statusEl = document.getElementById('status')!;
-const frame = document.getElementById('hr') as HTMLIFrameElement;
+const HR_API='https://jegxhnwjrzcpgsrxnawd.supabase.co/functions/v1/hr-api';
+const WORKSHOP={lat:15.1182955,lng:108.7838916,radius:200};
+const REMIND_AFTER_MIN=5;
+const statusEl=document.getElementById('status')!;
+const setupEl=document.getElementById('setup')!;
+const pinEl=document.getElementById('pin') as HTMLInputElement;
+const activateEl=document.getElementById('activate') as HTMLButtonElement;
+const frame=document.getElementById('hr') as HTMLIFrameElement;
 
-type UserCtx = { userID?: string; phongBan?: string; khuVuc?: string; hoTen?: string };
-let ctx: UserCtx | null = null;
-let inside = false;
+type UserCtx={userID?:string;phongBan?:string;khuVuc?:string;hoTen?:string};
+type SlotKey='VAO_SANG'|'RA_SANG'|'VAO_CHIEU'|'RA_CHIEU';
+const SLOT:Record<SlotKey,number>={VAO_SANG:1,RA_SANG:2,VAO_CHIEU:3,RA_CHIEU:4};
+let ctx:UserCtx|null=null, session='', inside=false, pollTimer:any=null;
 
-const SLOT = {
-  VAO_SANG: 1,
-  RA_SANG: 2,
-  VAO_CHIEU: 3,
-  RA_CHIEU: 4,
-} as const;
-
-type SlotKey = keyof typeof SLOT;
-
-type ShiftTimes = Record<SlotKey, string>;
-
-function setStatus(s: string) { statusEl.textContent = s; }
-
-function shiftFor(u: UserCtx | null): ShiftTimes {
-  const pb = (u?.phongBan || '').toLowerCase();
-  const kv = (u?.khuVuc || '').toLowerCase();
-  // Cán/In giữ giờ riêng 07:30-11:30 / 13:30-17:30.
-  if (kv === 'canin' || pb === 'cskh' || pb === 'kythuat') {
-    return { VAO_SANG:'07:30', RA_SANG:'11:30', VAO_CHIEU:'13:30', RA_CHIEU:'17:30' };
-  }
-  // Gia công còn lại.
-  return { VAO_SANG:'08:00', RA_SANG:'12:00', VAO_CHIEU:'14:00', RA_CHIEU:'18:00' };
+function setStatus(s:string){statusEl.textContent=s;}
+function shiftFor(u:UserCtx|null){
+  const pb=(u?.phongBan||'').toLowerCase(),kv=(u?.khuVuc||'').toLowerCase();
+  if(kv==='canin'||pb==='cskh'||pb==='kythuat')return{VAO_SANG:'07:30',RA_SANG:'11:30',VAO_CHIEU:'13:30',RA_CHIEU:'17:30'};
+  return{VAO_SANG:'08:00',RA_SANG:'12:00',VAO_CHIEU:'14:00',RA_CHIEU:'18:00'};
 }
+function hav(a:number,b:number,c:number,d:number){const R=6371000,r=(x:number)=>x*Math.PI/180,x=r(c-a),y=r(d-b),q=Math.sin(x/2)**2+Math.cos(r(a))*Math.cos(r(c))*Math.sin(y/2)**2;return 2*R*Math.asin(Math.sqrt(q));}
+function nid(date:Date,slot:SlotKey){return(date.getFullYear()%100)*1000000+(date.getMonth()+1)*10000+date.getDate()*100+SLOT[slot];}
+function atTime(date:Date,hhmm:string){const[h,m]=hhmm.split(':').map(Number),x=new Date(date);x.setHours(h,m+REMIND_AFTER_MIN,0,0);return x;}
+async function api(action:string,data:any={}){const res=await fetch(HR_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,data})});return res.json();}
 
-function haversine(aLat:number,aLng:number,bLat:number,bLng:number) {
-  const R=6371000, rad=(x:number)=>x*Math.PI/180;
-  const dLat=rad(bLat-aLat), dLng=rad(bLng-aLng);
-  const q=Math.sin(dLat/2)**2+Math.cos(rad(aLat))*Math.cos(rad(bLat))*Math.sin(dLng/2)**2;
-  return 2*R*Math.asin(Math.sqrt(q));
-}
+async function saveAuth(){await Preferences.set({key:'hr_reminder_session',value:session});await Preferences.set({key:'hr_reminder_user',value:JSON.stringify(ctx||{})});}
+async function loadAuth(){session=(await Preferences.get({key:'hr_reminder_session'})).value||'';const u=(await Preferences.get({key:'hr_reminder_user'})).value;ctx=u?JSON.parse(u):null;}
 
-function notificationId(date: Date, slot: SlotKey) {
-  const y=date.getFullYear()%100, m=date.getMonth()+1, d=date.getDate();
-  return y*1000000 + m*10000 + d*100 + SLOT[slot];
-}
+async function cancelAll(){const p=await LocalNotifications.getPending();const ours=p.notifications.filter(n=>n.extra?.nhaminhAttendance===true);if(ours.length)await LocalNotifications.cancel({notifications:ours.map(n=>({id:n.id}))});}
+async function cancelSlot(slot:SlotKey){try{await LocalNotifications.cancel({notifications:[{id:nid(new Date(),slot)}]});}catch{}}
 
-function atTime(date: Date, hhmm: string) {
-  const [h,m]=hhmm.split(':').map(Number);
-  const x=new Date(date);
-  x.setHours(h,m+REMIND_AFTER_MIN,0,0);
-  return x;
-}
-
-async function cancelAllScheduled() {
-  const pending=await LocalNotifications.getPending();
-  const ours=pending.notifications.filter(n => n.extra?.nhaminhAttendance === true);
-  if (ours.length) await LocalNotifications.cancel({notifications:ours.map(n=>({id:n.id}))});
-}
-
-async function scheduleWeek() {
-  if (!inside || !ctx?.userID) return;
-  await cancelAllScheduled();
-  const times=shiftFor(ctx);
-  const now=new Date();
-  const notes:any[]=[];
+async function scheduleWeek(){
+  if(!inside||!ctx?.userID)return;
+  await cancelAll();
+  const times=shiftFor(ctx),now=new Date(),notes:any[]=[];
+  const label:Record<SlotKey,string>={VAO_SANG:'vào sáng',RA_SANG:'ra trưa',VAO_CHIEU:'vào chiều',RA_CHIEU:'ra chiều'};
   for(let add=0;add<7;add++){
-    const day=new Date(now); day.setDate(day.getDate()+add); day.setHours(0,0,0,0);
-    (Object.keys(SLOT) as SlotKey[]).forEach(slot=>{
-      const at=atTime(day,times[slot]);
-      if(at<=now) return;
-      const label:Record<SlotKey,string>={
-        VAO_SANG:'vào sáng', RA_SANG:'ra trưa', VAO_CHIEU:'vào chiều', RA_CHIEU:'ra chiều'
-      };
-      notes.push({
-        id:notificationId(day,slot),
-        title:'⏰ Nhắc chấm công',
-        body:`Bạn đang ở xưởng. Nếu chưa chấm ${label[slot]}, hãy chấm công ngay.`,
-        schedule:{at},
-        extra:{nhaminhAttendance:true,slot,userID:ctx!.userID}
-      });
-    });
+    const day=new Date(now);day.setDate(day.getDate()+add);day.setHours(0,0,0,0);
+    (Object.keys(SLOT) as SlotKey[]).forEach(slot=>{const at=atTime(day,(times as any)[slot]);if(at<=now)return;notes.push({id:nid(day,slot),title:'⏰ Nhắc chấm công',body:`Bạn đang ở xưởng. Nếu chưa chấm ${label[slot]}, hãy chấm công ngay.`,schedule:{at},extra:{nhaminhAttendance:true,slot,userID:ctx!.userID}});});
   }
-  if(notes.length) await LocalNotifications.schedule({notifications:notes});
-  setStatus(`✅ Nhắc chấm công đang bật · ${ctx.hoTen || ctx.userID}`);
+  if(notes.length)await LocalNotifications.schedule({notifications:notes});
+  setStatus(`✅ Đang nhắc · ${ctx.hoTen||ctx.userID}`);
 }
 
-async function cancelTodaySlot(slot: SlotKey) {
-  const id=notificationId(new Date(),slot);
-  try { await LocalNotifications.cancel({notifications:[{id}]}); } catch (_) {}
-}
-
-function slotFromPunchAction(action:string):SlotKey {
-  const h=new Date().getHours();
-  if(action==='checkIn') return h<12?'VAO_SANG':'VAO_CHIEU';
-  return h<13?'RA_SANG':'RA_CHIEU';
-}
-
-async function checkInsideNow() {
+async function syncPunches(){
+  if(!session||!ctx?.userID||!inside)return;
   try{
-    const p=await Geolocation.getCurrentPosition({enableHighAccuracy:true,timeout:12000,maximumAge:30000});
-    inside=haversine(p.coords.latitude,p.coords.longitude,WORKSHOP.lat,WORKSHOP.lng)<=WORKSHOP.radius;
-    if(inside) await scheduleWeek(); else { await cancelAllScheduled(); setStatus('📍 Ngoài khu vực xưởng · không nhắc'); }
-  }catch(e){
-    setStatus('⚠ Chưa lấy được GPS nền. Mở quyền Vị trí: Luôn luôn.');
-  }
+    const out=await api('getTodayAttendance',{sessionToken:session});
+    if(!out?.success){if(out?.code==='SESSION_EXPIRED'||out?.code==='NO_SESSION'){session='';ctx=null;setupEl.style.display='block';setStatus('⚠ Phiên nhắc hết hạn · nhập PIN lại');}return;}
+    const done=new Set((out.data?.punches||[]).map((x:any)=>x.loai));
+    for(const s of Object.keys(SLOT) as SlotKey[])if(done.has(s))await cancelSlot(s);
+  }catch(e){console.error(e);}
 }
 
-async function initNative() {
+async function activate(){
+  const pin=pinEl.value.trim();if(!pin)return;
+  activateEl.disabled=true;setStatus('Đang bật nhắc…');
   try{
-    await LocalNotifications.requestPermissions();
-    await Geolocation.requestPermissions();
-
-    await BackgroundGeolocation.setupGeofencing({
-      backgroundLocation:true,
-      notifyOnEntry:true,
-      notifyOnExit:true
-    } as any);
-    try { await BackgroundGeolocation.removeGeofence({identifier:'NHAMINH_WORKSHOP'} as any); } catch (_) {}
-    await BackgroundGeolocation.addGeofence({
-      identifier:'NHAMINH_WORKSHOP',
-      latitude:WORKSHOP.lat,
-      longitude:WORKSHOP.lng,
-      radius:WORKSHOP.radius,
-      payload:{kind:'attendance'}
-    } as any);
-
-    await BackgroundGeolocation.addListener('geofenceTransition' as any, async (ev:any)=>{
-      if(ev.identifier!=='NHAMINH_WORKSHOP') return;
-      const tr=String(ev.transition||'').toLowerCase();
-      if(tr.includes('enter')) { inside=true; await scheduleWeek(); }
-      if(tr.includes('exit')) { inside=false; await cancelAllScheduled(); setStatus('📍 Đã rời xưởng · hủy nhắc'); }
-    });
-
-    await LocalNotifications.addListener('localNotificationActionPerformed',()=>{
-      frame.focus();
-    });
-
-    await checkInsideNow();
-  }catch(e){
-    console.error(e);
-    setStatus('⚠ Chưa bật được nhắc nền. Kiểm tra quyền Vị trí và Thông báo.');
-  }
+    const out=await api('loginFull',{pin});
+    if(!out?.success)throw new Error(out?.message||'PIN không đúng');
+    const d=out.data||{};session=d.sessionToken||d.token||'';
+    const u=d.user||d.profile||d;
+    ctx={userID:u.userID||u.user_code||u.maNhanVien,hoTen:u.hoTen||u.full_name||u.ten,phongBan:u.phongBan||u.department,khuVuc:u.khuVuc||u.work_area};
+    if(!session||!ctx.userID)throw new Error('Không lấy được phiên đăng nhập.');
+    await saveAuth();pinEl.value='';setupEl.style.display='none';await checkInsideNow();await syncPunches();
+  }catch(e:any){alert(e.message||String(e));setStatus('⚠ Chưa bật nhắc');}
+  finally{activateEl.disabled=false;}
 }
 
-window.addEventListener('message', async (ev:MessageEvent)=>{
-  if(ev.origin!==HR_ORIGIN) return;
-  const m=ev.data||{};
-  if(m.type==='NHAMINH_NATIVE_CONTEXT'){
-    ctx=m.user||null;
-    if(inside) await scheduleWeek();
-  }
-  if(m.type==='NHAMINH_NATIVE_PUNCH' && m.action){
-    await cancelTodaySlot(slotFromPunchAction(String(m.action)));
-  }
-});
+async function checkInsideNow(){
+  try{const p=await Geolocation.getCurrentPosition({enableHighAccuracy:true,timeout:12000,maximumAge:30000});inside=hav(p.coords.latitude,p.coords.longitude,WORKSHOP.lat,WORKSHOP.lng)<=WORKSHOP.radius;if(inside){await scheduleWeek();await syncPunches();}else{await cancelAll();setStatus('📍 Ngoài khu vực xưởng · không nhắc');}}
+  catch{setStatus('⚠ Hãy cấp quyền Vị trí: Luôn luôn');}
+}
 
-initNative();
+async function init(){
+  await loadAuth();setupEl.style.display=session&&ctx?.userID?'none':'block';
+  activateEl.addEventListener('click',activate);
+  await LocalNotifications.requestPermissions();await Geolocation.requestPermissions();
+  try{
+    await BackgroundGeolocation.setupGeofencing({backgroundLocation:true,notifyOnEntry:true,notifyOnExit:true} as any);
+    try{await BackgroundGeolocation.removeGeofence({identifier:'NHAMINH_WORKSHOP'} as any);}catch{}
+    await BackgroundGeolocation.addGeofence({identifier:'NHAMINH_WORKSHOP',latitude:WORKSHOP.lat,longitude:WORKSHOP.lng,radius:WORKSHOP.radius,payload:{kind:'attendance'}} as any);
+    await BackgroundGeolocation.addListener('geofenceTransition' as any,async(ev:any)=>{if(ev.identifier!=='NHAMINH_WORKSHOP')return;const t=String(ev.transition||'').toLowerCase();if(t.includes('enter')){inside=true;await scheduleWeek();await syncPunches();}if(t.includes('exit')){inside=false;await cancelAll();setStatus('📍 Đã rời xưởng · hủy nhắc');}});
+  }catch(e){console.error(e);}
+  await LocalNotifications.addListener('localNotificationActionPerformed',()=>frame.focus());
+  await checkInsideNow();
+  pollTimer=setInterval(()=>{if(document.visibilityState==='visible')syncPunches();},5000);
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){checkInsideNow();syncPunches();}});
+}
+
+init();
