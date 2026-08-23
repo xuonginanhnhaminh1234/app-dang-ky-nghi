@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Nhân Sự Nhà Mình</title>
+  <style>
+    html,body{margin:0;height:100%;background:#fff;font-family:system-ui,-apple-system,sans-serif}
+    #app{height:100%;display:flex;flex-direction:column}
+    #status{font-size:12px;padding:6px 10px;background:#eef6ff;color:#174a7e;border-bottom:1px solid #d9e8f5}
+    #hr{border:0;flex:1;width:100%;min-height:0}
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="status">Đang khởi động nhắc chấm công…</div>
+    <iframe id="hr" src="https://nhaminh-hr-tt.xuonginanhnhaminh.workers.dev/" allow="geolocation"></iframe>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
