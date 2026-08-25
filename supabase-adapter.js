@@ -9,6 +9,7 @@
   const ANNOUNCE_API = 'https://jegxhnwjrzcpgsrxnawd.supabase.co/functions/v1/hr-announcement-api';
   const DASH_V5_API = 'https://jegxhnwjrzcpgsrxnawd.supabase.co/functions/v1/hr-dashboard-v5-api';
   const PAY_V5_API = 'https://jegxhnwjrzcpgsrxnawd.supabase.co/functions/v1/hr-payroll-v5-api';
+  const LATE_API = 'https://jegxhnwjrzcpgsrxnawd.supabase.co/functions/v1/hr-late-report-api';
   const SESSION_KEY = 'nhaminh_hr_session_test';
 
   const EXTRA_ACTIONS = new Set([
@@ -28,6 +29,7 @@
   const PAY_V5_ACTIONS = new Set([
     'getLockStatus','lockPeriod','lockPayroll','unlockPeriod','getPayrollV5','getLockedPayroll','exportPayrollTSV'
   ]);
+  const LATE_ACTIONS = new Set(['getMonthlyLateReport']);
 
   function getSession(){ return localStorage.getItem(SESSION_KEY) || ''; }
   function setSession(token){ if(token) localStorage.setItem(SESSION_KEY, token); }
@@ -69,6 +71,7 @@
       : ANNOUNCE_ACTIONS.has(action) ? ANNOUNCE_API
       : DASH_V5_ACTIONS.has(action) ? DASH_V5_API
       : PAY_V5_ACTIONS.has(action) ? PAY_V5_API
+      : LATE_ACTIONS.has(action) ? LATE_API
       : EXTRA_ACTIONS.has(action) ? EXTRA_API
       : CORE_API;
     const payload=normalizeRequest(action,data);
@@ -113,5 +116,39 @@
     if(box)box.innerHTML=html;
   };
 
-  console.log('[NHAMINH HR] Supabase adapter loaded · V5 parity pass');
+  function lateDetailText(row){
+    const valid=(row.chiTiet||[]).filter(x=>!x.canKiemTra).map(x=>fmtDate(x.ngay)+': '+Number(x.phutTre||0)+'p');
+    const review=(row.chiTiet||[]).filter(x=>x.canKiemTra).map(x=>fmtDate(x.ngay)+': '+Number(x.phutTre||0)+'p ⚠');
+    return [...valid,...review].join(' · ');
+  }
+
+  if(typeof loadPMDash==='function'){
+    const oldLoadPMDash=loadPMDash;
+    loadPMDash=async function(){
+      await oldLoadPMDash();
+      const box=document.getElementById('pmdBox');
+      if(!box)return;
+      const res=await callSupabase('getMonthlyLateReport',{},true);
+      if(!res?.success){
+        box.insertAdjacentHTML('beforeend','<div class="alert red" style="margin-top:12px">Không tải được báo cáo đi trễ tháng: '+escapeHtml(res?.message||'Lỗi')+'</div>');
+        return;
+      }
+      const d=res.data||{};
+      let html='<div class="card" style="margin-top:12px"><b>⏱ Đi trễ tháng '+escapeHtml(d.thang||'')+'</b>'+
+        '<div class="line" style="margin-top:8px">Hợp lệ: <b>'+Number(d.tongLanTreHopLe||0)+' lần</b> · <b>'+Number(d.tongPhutTreHopLe||0)+' phút</b>'+
+        (Number(d.tongLanCanKiemTra||0)>0?' · <span class="badge cho-duyet">⚠ '+Number(d.tongLanCanKiemTra||0)+' lần cần kiểm tra</span>':'')+'</div>'+
+        '<div class="muted" style="margin-top:4px">Lần trễ trên '+Number(d.nguongCanKiemTraPhut||60)+' phút không cộng vào vi phạm, chỉ gắn cờ để PM kiểm tra.</div>';
+      if(!(d.danhSach||[]).length){
+        html+='<div class="alert green" style="margin-top:8px">Tháng này chưa có nhân sự đi trễ.</div>';
+      }else{
+        (d.danhSach||[]).forEach(r=>{
+          html+='<details style="margin-top:8px;border-top:1px solid #eee;padding-top:8px"><summary><b>'+escapeHtml(r.hoTen||r.userID)+'</b> · '+escapeHtml(r.phongBan||'')+' — '+Number(r.soLanTre||0)+' lần / '+Number(r.tongPhutTre||0)+' phút'+(Number(r.soLanCanKiemTra||0)>0?' · ⚠ '+Number(r.soLanCanKiemTra||0)+' kiểm tra':'')+'</summary><div class="muted" style="margin-top:6px;line-height:1.55">'+escapeHtml(lateDetailText(r))+'</div></details>';
+        });
+      }
+      html+='</div>';
+      box.insertAdjacentHTML('beforeend',html);
+    };
+  }
+
+  console.log('[NHAMINH HR] Supabase adapter loaded · V5 parity + monthly late report');
 })();
